@@ -22,5 +22,9 @@
   <modules>
   	<module>da.util</module>
   	<module>da.manager</module>
+  	<module>da.converter</module>
+  	<module>da.infer</module>
+  	<module>da.reducer</module>
+  	<module>da.sender</module>
   </modules>
 </project>
