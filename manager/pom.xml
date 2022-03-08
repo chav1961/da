@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-  <groupId>com.github.chav1961</groupId>
-  <artifactId>da</artifactId>
+    <groupId>com.github.chav1961</groupId>
+    <artifactId>da</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <artifactId>da.util</artifactId>
+  <artifactId>da.manager</artifactId>
 
 	<developers>
 		<developer>
@@ -58,8 +58,16 @@
 	    </repository>
 	</distributionManagement>
   
+    <dependencies>
+       	<dependency>
+     		<groupId>com.github.chav1961</groupId>
+     		<artifactId>da.util</artifactId>
+     		<version>${project.parent.version}</version>
+     	</dependency>
+    </dependencies>
+  
      <build>
-       <finalName>util-0.0.1</finalName>
+       <finalName>manager-0.0.1</finalName>
         <resources>
             <resource>
                 <directory>src/main/java</directory>
@@ -114,6 +122,7 @@
                        <manifest>
                            <addClasspath>true</addClasspath>
                            <classpathPrefix>./</classpathPrefix>
+                            <mainClass>chav1961.da.manager.Application</mainClass>
                        </manifest>
                    </archive>
                </configuration>
@@ -144,6 +153,4 @@
  -->	    
        </plugins>
    </build>
-
-
 </project>
