@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-  <groupId>com.github.chav1961</groupId>
-  <artifactId>da</artifactId>
+    <groupId>com.github.chav1961</groupId>
+    <artifactId>da</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <artifactId>da.util</artifactId>
+  <artifactId>da.manager</artifactId>
 
 	<developers>
 		<developer>
@@ -58,8 +58,16 @@
 	    </repository>
 	</distributionManagement>
   
+    <dependencies>
+       	<dependency>
+     		<groupId>com.github.chav1961</groupId>
+     		<artifactId>da.util</artifactId>
+     		<version>${project.parent.version}</version>
+     	</dependency>
+    </dependencies>
+  
      <build>
-       <finalName>util-0.0.1</finalName>
+       <finalName>sender-0.0.1</finalName>
         <resources>
             <resource>
                 <directory>src/main/java</directory>
@@ -82,28 +90,6 @@
                    <target>9</target>
                </configuration>
            </plugin>
-		<plugin>
-		    <groupId>org.apache.maven.plugins</groupId>
-		    <artifactId>maven-dependency-plugin</artifactId>
-		    <version>2.6</version>
-		    <executions>
-		        <execution>
-		            <id>unpack-dependencies</id>
-		            <phase>package</phase>
-		            <goals>
-		                <goal>unpack-dependencies</goal>
-		            </goals>
-		            <configuration>
-		                <excludeScope>system</excludeScope>
-		                <excludes>META-INF/*.SF</excludes>
-		                <excludes>META-INF/*.DSA</excludes>
-		                <excludes>META-INF/*.RSA</excludes>
-		                <excludeGroupIds>junit,org.mockito,org.hamcrest</excludeGroupIds>
-		                <outputDirectory>${project.build.directory}/classes</outputDirectory>
-		            </configuration>
-		        </execution>
-		    </executions>
-		</plugin>
            <plugin>
                <groupId>org.apache.maven.plugins</groupId>
                <artifactId>maven-jar-plugin</artifactId>
@@ -114,36 +100,11 @@
                        <manifest>
                            <addClasspath>true</addClasspath>
                            <classpathPrefix>./</classpathPrefix>
+                            <mainClass>chav1961.da.manager.Application</mainClass>
                        </manifest>
                    </archive>
                </configuration>
            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>2.3</version>
-                <configuration>
-                    <!-- put your configurations here -->
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-<!-- 	    <plugin>
-	        <artifactId>maven-deploy-plugin</artifactId>
-	        <version>2.8.1</version>
-	        <configuration>
-	               <altDeploymentRepository>internal.repo::default::file://${project.build.directory}/mvn-repo</altDeploymentRepository>
-	        </configuration>
-	    </plugin>
- -->	    
        </plugins>
    </build>
-
-
 </project>
