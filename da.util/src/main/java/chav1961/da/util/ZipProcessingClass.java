@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.concurrent.Flow.Processor;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -23,12 +24,19 @@ import chav1961.purelib.basic.exceptions.ContentException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
 
 public class ZipProcessingClass {
+	public static final EntityProcessor	COPY_PROCESSOR = (reader, writer, partName, format, logger, debug) -> Utils.copyStream(reader, writer);
+	public static final Pattern			ALL_PATTERN = Pattern.compile(".*"); 
+	public static final Pattern			NONE_PATTERN = Pattern.compile("\uFFFF"); 
+	
 	@FunctionalInterface
 	public interface EntityProcessor {
-		void process(InputStream reader, OutputStream writer, String partName, InputFormat format, LoggerFacade logger, boolean debug);
+		void process(InputStream reader, OutputStream writer, String partName, InputFormat format, LoggerFacade logger, boolean debug) throws IOException;
 		
 		default String rename(String partName) {
 			return partName;
+		}
+
+		default void append(ZipOutputStream writer, LoggerFacade logger, boolean debug) throws IOException {
 		}
 	}
 	
@@ -106,6 +114,7 @@ public class ZipProcessingClass {
 							}
 						}
 						if (zeIn != null) {
+							processor.append(zos, logger, debug);
 							zeOut = new ZipEntry(zeIn.getName());
 							zeOut.setMethod(ZipEntry.DEFLATED);
 							zos.putNextEntry(zeOut);
@@ -135,5 +144,9 @@ public class ZipProcessingClass {
 			} catch (IOException e) {
 			}
 		}
+	}
+
+	public static void copyZip(final InputStream is, final OutputStream os, final boolean debug) throws NullPointerException, ContentException {
+		parseZip(is, os, NONE_PATTERN, ALL_PATTERN, COPY_PROCESSOR, debug);
 	}
 }
