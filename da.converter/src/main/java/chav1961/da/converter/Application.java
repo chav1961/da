@@ -136,6 +136,9 @@ public class Application {
 	
 	private static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
+			new BooleanArg(Constants.ARG_ZIP, false, "Parse input as *.zip format", false),
+			new StringArg(Constants.ARG_SKIP, false, false, "Skip input *.zip parts and remove then from output stream"),
+			new StringArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. If missing,all the partswill be processed", "*"),
 			new EnumArg<InputFormat>(ARG_INPUT_FORMAT, InputFormat.class, false, false, "Input format. When missing, treated as *.zip with the same first 'ticket.txt' part"),
 			new EnumArg<InputFormat>(ARG_OUTPUT_FORMAT, InputFormat.class, false, false, "Output format. When missing, treated as 'no conversion'. When input format is *.zip, the output format is also *.zip"),
 		};
