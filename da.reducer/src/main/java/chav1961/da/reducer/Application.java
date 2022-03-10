@@ -20,7 +20,7 @@ public class Application {
 	private static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
 			new BooleanArg(Constants.ARG_ZIP, false, "Parse input as *.zip format", false),
-			new StringArg(Constants.ARG_SKIP, false, false, "Skip input *.zip parts and remove then from output stream"),
+			new StringArg(Constants.ARG_EXCLUDE, false, false, "Skip input *.zip parts and remove then from output stream"),
 			new StringArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. If missing,all the partswill be processed", "*"),
 			new EnumArg<Action>(ARG_ACTION, Action.class, true, true, "Action"),
 			new URIArg(ARG_REPO_URI, false, true, "version repository"),

@@ -73,7 +73,7 @@ public class Application {
 									
 									final Writer	wr = new OutputStreamWriter(zos, PureLibSettings.DEFAULT_CONTENT_ENCODING);
 									
-									process(rdr, wr, inputZipType, outputType, tree, logger);
+									processEntry(rdr, wr, inputZipType, outputType, tree, logger);
 								}
 								
 								if (ze != null) {
@@ -102,7 +102,7 @@ public class Application {
 				final Reader	rdr = new InputStreamReader(System.in, PureLibSettings.DEFAULT_CONTENT_ENCODING);
 				final Writer	wr = new OutputStreamWriter(System.out, PureLibSettings.DEFAULT_CONTENT_ENCODING);
 				
-				process(rdr, wr, inputType, outputType, tree, PureLibSettings.CURRENT_LOGGER);
+				processEntry(rdr, wr, inputType, outputType, tree, PureLibSettings.CURRENT_LOGGER);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -113,7 +113,7 @@ public class Application {
 		}
 	}
 
-	public static void process(final Reader rdr, final Writer wr, final URI inputType, final URI outputType, final SyntaxTreeInterface<char[]> tree, final LoggerFacade logger) throws IOException {
+	public static void processEntry(final Reader rdr, final Writer wr, final URI inputType, final URI outputType, final SyntaxTreeInterface<char[]> tree, final LoggerFacade logger) throws IOException {
 		for (InputConverterInterface inputItem : ServiceLoader.load(InputConverterInterface.class)) {
 			if (inputItem.canServe(inputType)) {
 				for (OutputConverterInterface outputItem : ServiceLoader.load(OutputConverterInterface.class)) {
@@ -137,7 +137,7 @@ public class Application {
 	private static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
 			new BooleanArg(Constants.ARG_ZIP, false, "Parse input as *.zip format", false),
-			new StringArg(Constants.ARG_SKIP, false, false, "Skip input *.zip parts and remove then from output stream"),
+			new StringArg(Constants.ARG_EXCLUDE, false, false, "Skip input *.zip parts and remove then from output stream"),
 			new StringArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. If missing,all the partswill be processed", "*"),
 			new EnumArg<InputFormat>(ARG_INPUT_FORMAT, InputFormat.class, false, false, "Input format. When missing, treated as *.zip with the same first 'ticket.txt' part"),
 			new EnumArg<InputFormat>(ARG_OUTPUT_FORMAT, InputFormat.class, false, false, "Output format. When missing, treated as 'no conversion'. When input format is *.zip, the output format is also *.zip"),

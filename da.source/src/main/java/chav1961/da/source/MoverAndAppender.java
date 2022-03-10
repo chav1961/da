@@ -5,12 +5,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import chav1961.da.util.ZipProcessingClass;
-import chav1961.da.util.ZipProcessingClass.EntityProcessor;
+import chav1961.da.util.interfaces.EntityProcessor;
 import chav1961.da.util.interfaces.InputFormat;
+import chav1961.da.util.interfaces.RenamingInterface;
 import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.ContentException;
@@ -23,8 +24,15 @@ import chav1961.purelib.fsys.interfaces.FileSystemInterface;
 public class MoverAndAppender implements EntityProcessor {
 	private final URI[]	uris;
 	
-	public MoverAndAppender(final String... uris) throws CommandLineParametersException {
-		if (uris == null || Utils.checkArrayContent4Nulls(uris, true) >= 0) {
+	public MoverAndAppender(final String... uris) throws CommandLineParametersException, IllegalArgumentException, NullPointerException {
+		this((s)->s, uris);
+	}
+	
+	public MoverAndAppender(final RenamingInterface ren, final String... uris) throws CommandLineParametersException, IllegalArgumentException, NullPointerException {
+		if (ren == null) {
+			throw new NullPointerException("Renaming interface can't be null");
+		}
+		else if (uris == null || Utils.checkArrayContent4Nulls(uris, true) >= 0) {
 			throw new IllegalArgumentException("Uri string list can't be null and can't contains nulls or empties inside");
 		}
 		else {
@@ -37,12 +45,12 @@ public class MoverAndAppender implements EntityProcessor {
 	}
 	
 	@Override
-	public void process(final InputStream reader, final OutputStream writer, final String partName, final InputFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
+	public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final InputFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
 		Utils.copyStream(reader, writer);
 	}
 
 	@Override
-	public void append(final ZipOutputStream writer, final LoggerFacade logger, final boolean debug) throws IOException {
+	public void appendEntries(final ZipOutputStream writer, final LoggerFacade logger, final boolean debug) throws IOException {
 		for(URI item : uris) {
 			if (item.isAbsolute()) { 
 				if(FileSystemInterface.FILESYSTEM_URI_SCHEME.equals(item.getScheme())) {
@@ -52,18 +60,17 @@ public class MoverAndAppender implements EntityProcessor {
 				}
 				else if(!"jar".equals(item.getScheme()) || item.getRawPath().contains("!")) {
 					try(final InputStream	is = item.toURL().openStream()) {
-						final String		name = rename(item.getPath());
-						final ZipEntry		ze = new ZipEntry(name);
 						
-						ze.setMethod(ZipEntry.DEFLATED);
-						writer.putNextEntry(ze);
-						Utils.copyStream(is, writer);
-						writer.closeEntry();
+						ZipProcessingClass.copyZip(is, renameEntry(item.getPath()), writer, logger, debug);
+					} catch (ContentException e) {
+						throw new IOException(e.getLocalizedMessage(),e);
 					}
 				}
 				else {
-					try(final InputStream	is = item.toURL().openStream()) {
-						ZipProcessingClass.copyZip(is, writer, debug);
+					try(final InputStream		is = item.toURL().openStream();
+						final ZipInputStream	zis = new ZipInputStream(is)) {
+						
+						ZipProcessingClass.copyZip(zis, writer, debug);
 					} catch (ContentException e) {
 						throw new IOException(e.getLocalizedMessage(), e);
 					}
@@ -86,15 +93,11 @@ public class MoverAndAppender implements EntityProcessor {
 		}
 		else {
 			try(final InputStream	is = fsi.read()) {
-				final ZipEntry		ze = new ZipEntry(fsi.getPath());
 				
-				ze.setMethod(ZipEntry.DEFLATED);
-				writer.putNextEntry(ze);
-				Utils.copyStream(is, writer);
-				writer.closeEntry();
+				ZipProcessingClass.copyZip(is, renameEntry(fsi.getPath()), writer, logger, debug);
+			} catch (ContentException e) {
+				throw new IOException(e.getLocalizedMessage(), e);
 			}
 		}
 	}
-	
-	
 }
