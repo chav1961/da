@@ -246,7 +246,7 @@ public class ZipProcessingClassTest {
 											
 											@Override
 											public void appendEntries(final ZipOutputStream writer, final LoggerFacade logger, boolean debug) throws IOException {
-												try(final InputStream		is = ZipProcessingClass.createZipTemplate(new Properties(), URIUtils.convert2selfURI("added", "test string".getBytes()).toURL());
+												try(final InputStream		is = ZipProcessingClass.createZipTemplate(new Properties(), URIUtils.convert2selfURI("added", "test string".getBytes()));
 													final ZipInputStream	zis = new ZipInputStream(is)) {
 													
 													ZipProcessingClass.copyZip(zis, writer, debug);
