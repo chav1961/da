@@ -28,6 +28,7 @@ import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.SystemErrLoggerFacade;
+import chav1961.purelib.basic.URIUtils;
 import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.ContentException;
@@ -230,7 +231,7 @@ public class ZipProcessingClass {
 			throw new NullPointerException("Input stream can't be null");
 		}
 		else if (entryName == null || entryName.isEmpty()) {
-			throw new IllegalArgumentException("Output stream can't be null");
+			throw new IllegalArgumentException("Entry name can't be null or empty");
 		}
 		else if (ri == null) {
 			throw new NullPointerException("Renaming interface can't be null");
@@ -329,10 +330,21 @@ public class ZipProcessingClass {
 			}
 		}
 		else if ("jar".equals(uri.getScheme())) {
-			try(final InputStream		is = uri.toURL().openStream();
-				final ZipInputStream	zis = new ZipInputStream(is)) {
+			if (uri.toString().contains("!/")) {
+				try(final InputStream		is = uri.toURL().openStream()) {
+					final String			ssp = uri.getSchemeSpecificPart();
+					
+					copyZip(is, ssp.substring(ssp.indexOf("!/")+1), ri, os, logger, debug);
+				}
+			}
+			else {
+				final URI	nested = URI.create(uri.getSchemeSpecificPart());
 				
-				copyZip(zis, os, skip, ri, logger, debug);
+				try(final InputStream		is = nested.toURL().openStream();
+					final ZipInputStream	zis = new ZipInputStream(is)) {
+					
+					copyZip(zis, os, skip, ri, logger, debug);
+				}
 			}
 		}
 		else {

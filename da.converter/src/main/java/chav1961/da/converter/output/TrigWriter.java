@@ -10,10 +10,10 @@ import chav1961.purelib.basic.URIUtils;
 import chav1961.purelib.basic.exceptions.EnvironmentException;
 import chav1961.purelib.basic.interfaces.SyntaxTreeInterface;
 
-public class NTripleWriter implements OutputConverterInterface {
-	private static final URI	SERVE_URI = URI.create(CONV_SCHEMA+":"+DAContentFormat.N_TRIPLES.getSchema()+":/");
+public class TrigWriter implements OutputConverterInterface {
+	private static final URI	SERVE_URI = URI.create(CONV_SCHEMA+":"+DAContentFormat.TRIG.getSchema()+":/");
 
-	public NTripleWriter() {
+	public TrigWriter() {
 	}
 	
 	@Override

@@ -2,12 +2,14 @@ package chav1961.da.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -16,8 +18,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import chav1961.da.util.interfaces.EntityProcessor;
-import chav1961.da.util.interfaces.InputFormat;
+import chav1961.da.util.interfaces.DAContentFormat;
+import chav1961.da.util.interfaces.RenamingInterface;
 import chav1961.purelib.basic.ArgParser;
+import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.URIUtils;
 import chav1961.purelib.basic.Utils;
@@ -54,9 +58,7 @@ public class ZipProcessingClassTest {
 	
 	@Test
 	public void createZipTemplateTest() throws IOException {
-		final SubstitutableProperties	props = new SubstitutableProperties(), newProps = new SubstitutableProperties();
-		
-		props.setProperty("key", "value");
+		final SubstitutableProperties	props = new SubstitutableProperties(Utils.mkProps("key","value")), newProps = new SubstitutableProperties();
 		
 		try(final InputStream		is = ZipProcessingClass.createZipTemplate(props);
 			final ZipInputStream	zis = new ZipInputStream(is)) {
@@ -81,11 +83,8 @@ public class ZipProcessingClassTest {
 
 	@Test
 	public void parseAndCopyZipTest() throws IOException, ContentException {
-		final SubstitutableProperties	props = new SubstitutableProperties(), newProps = new SubstitutableProperties();
+		final SubstitutableProperties	props = new SubstitutableProperties(Utils.mkProps("key","value")), newProps = new SubstitutableProperties();
 		final boolean[]					entered = new boolean[] {false};
-		
-		
-		props.setProperty("key", "value");
 		
 		try(final ByteArrayOutputStream	baos = new ByteArrayOutputStream();
 			final ZipOutputStream		zos = new ZipOutputStream(baos)){
@@ -95,7 +94,7 @@ public class ZipProcessingClassTest {
 				
 				final EntityProcessor	ep = new EntityProcessor() {
 											@Override
-											public void processEntry(InputStream reader, OutputStream writer, String partName, InputFormat format, LoggerFacade logger, boolean debug) throws IOException {
+											public void processEntry(InputStream reader, OutputStream writer, String partName, DAContentFormat format, LoggerFacade logger, boolean debug) throws IOException {
 												Assert.fail("Unwaited call!");
 											}
 											
@@ -184,7 +183,7 @@ public class ZipProcessingClassTest {
 
 				final EntityProcessor		ep = new EntityProcessor() {
 												@Override
-												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final InputFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
+												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final DAContentFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
 													Assert.assertEquals("addon",partName);
 													entered[0] = true;
 												}
@@ -203,7 +202,7 @@ public class ZipProcessingClassTest {
 
 				final EntityProcessor		ep = new EntityProcessor() {
 												@Override
-												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final InputFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
+												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final DAContentFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
 													Assert.assertEquals("addon",partName);
 													entered[0] = true;
 												}
@@ -222,7 +221,7 @@ public class ZipProcessingClassTest {
 
 				final EntityProcessor		ep = new EntityProcessor() {
 												@Override
-												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final InputFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
+												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final DAContentFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
 													Assert.assertEquals("addon",partName);
 													entered[0] = true;
 												}
@@ -241,12 +240,12 @@ public class ZipProcessingClassTest {
 				final ZipInputStream	zis = new ZipInputStream(is)) {
 				final EntityProcessor	ep = new EntityProcessor() {
 											@Override
-											public void processEntry(InputStream reader, OutputStream writer, String partName, InputFormat format, LoggerFacade logger, boolean debug) throws IOException {
+											public void processEntry(InputStream reader, OutputStream writer, String partName, DAContentFormat format, LoggerFacade logger, boolean debug) throws IOException {
 											}
 											
 											@Override
 											public void appendEntries(final ZipOutputStream writer, final LoggerFacade logger, boolean debug) throws IOException {
-												try(final InputStream		is = ZipProcessingClass.createZipTemplate(new Properties(), URIUtils.convert2selfURI("added", "test string".getBytes()));
+												try(final InputStream		is = ZipProcessingClass.createZipTemplate(new Properties(), URIUtils.convert2selfURI("/added", "test string".getBytes()));
 													final ZipInputStream	zis = new ZipInputStream(is)) {
 													
 													ZipProcessingClass.copyZip(zis, writer, debug);
@@ -275,7 +274,7 @@ public class ZipProcessingClassTest {
 
 				final EntityProcessor		ep = new EntityProcessor() {
 												@Override
-												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final InputFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
+												public void processEntry(final InputStream reader, final OutputStream writer, final String partName, final DAContentFormat format, final LoggerFacade logger, final boolean debug) throws IOException {
 													Assert.assertEquals("addon",partName);
 													entered[0] = true;
 												}
@@ -290,6 +289,72 @@ public class ZipProcessingClassTest {
 		
 	}	
 
+	@Test
+	public void urlCopiesTest() throws IOException, ContentException {
+		final SubstitutableProperties	props = new SubstitutableProperties(Utils.mkProps("key","value"));
+		
+		try(final ByteArrayOutputStream	baos = new ByteArrayOutputStream();
+			final ZipOutputStream		zos = new ZipOutputStream(baos)){
+			
+			ZipProcessingClass.copyZip(URI.create("./src/test/resources/a.txt"),zos);
+			ZipProcessingClass.copyZip(URI.create("fsys:"+new File("./src/test/resources/folder1/").toURI()),zos);
+			ZipProcessingClass.copyZip(URI.create("jar:"+new File("./src/test/resources/y.zip").toURI()+"!/y.txt"),zos);
+			ZipProcessingClass.copyZip(URI.create("jar:"+new File("./src/test/resources/z.zip/").toURI()),zos);
+			zos.finish();
+
+			try{ZipProcessingClass.copyZip((URI)null, zos, ZipProcessingClass.NONE_PATTERN, (s)->s, PureLibSettings.CURRENT_LOGGER, false);
+				Assert.fail("Mandatory exception was not detected (null 1-st argument)");
+			} catch (NullPointerException exc) {
+			}
+			try{ZipProcessingClass.copyZip(URI.create("s:/"), null, ZipProcessingClass.NONE_PATTERN, (s)->s, PureLibSettings.CURRENT_LOGGER, false);
+				Assert.fail("Mandatory exception was not detected (null 2-nd argument)");
+			} catch (NullPointerException exc) {
+			}
+			try{ZipProcessingClass.copyZip(URI.create("s:/"), zos, null, (s)->s, PureLibSettings.CURRENT_LOGGER, false);
+				Assert.fail("Mandatory exception was not detected (null 3-rd argument)");
+			} catch (NullPointerException exc) {
+			}
+			try{ZipProcessingClass.copyZip(URI.create("s:/"), zos, ZipProcessingClass.NONE_PATTERN, null, PureLibSettings.CURRENT_LOGGER, false);
+				Assert.fail("Mandatory exception was not detected (null 4-th argument)");
+			} catch (NullPointerException exc) {
+			}
+			try{ZipProcessingClass.copyZip(URI.create("s:/"), zos, ZipProcessingClass.NONE_PATTERN, (s)->s, null, false);
+				Assert.fail("Mandatory exception was not detected (null 5-th argument)");
+			} catch (NullPointerException exc) {
+			}
+			
+			
+			try(final InputStream		is = new ByteArrayInputStream(baos.toByteArray());
+				final ZipInputStream	zis = new ZipInputStream(is)) {
+				ZipEntry	ze;
+				
+				ze = zis.getNextEntry();
+				Assert.assertEquals("a.txt", ze.getName());
+				Assert.assertEquals("test a", Utils.fromResource(new InputStreamReader(zis)).replace("\r", "").replace("\n", ""));
+
+				ze = zis.getNextEntry();
+				Assert.assertEquals("/x.txt", ze.getName());
+				Assert.assertEquals("test x", Utils.fromResource(new InputStreamReader(zis)).replace("\r", "").replace("\n", ""));
+
+				ze = zis.getNextEntry();
+				Assert.assertEquals("/y.txt", ze.getName());
+				Assert.assertEquals("test y", Utils.fromResource(new InputStreamReader(zis)).replace("\r", "").replace("\n", ""));
+
+				ze = zis.getNextEntry();
+				Assert.assertEquals("z.txt", ze.getName());
+				Assert.assertEquals("test z", Utils.fromResource(new InputStreamReader(zis)).replace("\r", "").replace("\n", ""));
+
+				ze = zis.getNextEntry();
+				Assert.assertEquals("t.txt", ze.getName());
+				Assert.assertEquals("test t", Utils.fromResource(new InputStreamReader(zis)).replace("\r", "").replace("\n", ""));
+
+				Assert.assertNull(zis.getNextEntry());
+			}
+		}
+		
+		
+	}	
+	
 	private static int calcEntryCount(final byte[] content) throws IOException {
 		int		count = 0;
 		

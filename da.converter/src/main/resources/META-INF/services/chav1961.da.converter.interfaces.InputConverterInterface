@@ -1,1 +1,7 @@
+chav1961.da.converter.input.JsonReader
+chav1961.da.converter.input.N3Reader
+chav1961.da.converter.input.NQuadReader
 chav1961.da.converter.input.NTripleReader
+chav1961.da.converter.input.TrigReader
+chav1961.da.converter.input.TurtleReader
+chav1961.da.converter.input.XmlReader

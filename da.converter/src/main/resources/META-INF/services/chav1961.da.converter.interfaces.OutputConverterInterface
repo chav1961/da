@@ -1,1 +1,7 @@
+chav1961.da.converter.output.JsonWriter
+chav1961.da.converter.output.N3Writer
+chav1961.da.converter.output.NQuadWriter
 chav1961.da.converter.output.NTripleWriter
+chav1961.da.converter.output.TrigWriter
+chav1961.da.converter.output.TurtleWriter
+chav1961.da.converter.output.XMLWriter

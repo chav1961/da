@@ -12,10 +12,10 @@ import chav1961.purelib.basic.exceptions.EnvironmentException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
 import chav1961.purelib.basic.interfaces.SyntaxTreeInterface;
 
-public class NTripleReader implements InputConverterInterface {
-	private static final URI	SERVE_URI = URI.create(CONV_SCHEMA+":"+DAContentFormat.N_TRIPLES.getSchema()+":/");
+public class JsonReader implements InputConverterInterface {
+	private static final URI	SERVE_URI = URI.create(CONV_SCHEMA+":"+DAContentFormat.RDF_JSON.getSchema()+":/");
 	
-	public NTripleReader() {
+	public JsonReader() {
 	}
 	
 	@Override
@@ -32,7 +32,7 @@ public class NTripleReader implements InputConverterInterface {
 			throw new NullPointerException("Resource to test can'tbe null");
 		}
 		else if (canServe(resource)) {
-			return new NTripleReader();
+			return new JsonReader();
 		}
 		else {
 			throw new EnvironmentException("Can't create instance for serving ["+resource+"]");

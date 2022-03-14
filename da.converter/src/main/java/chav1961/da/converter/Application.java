@@ -1,31 +1,32 @@
 package chav1961.da.converter;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.io.Reader;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.net.URI;
 import java.util.ServiceLoader;
-import java.util.zip.ZipEntry;
+import java.util.regex.Pattern;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import chav1961.da.converter.interfaces.InputConverterInterface;
 import chav1961.da.converter.interfaces.OutputConverterInterface;
 import chav1961.da.util.Constants;
-import chav1961.da.util.interfaces.InputFormat;
+import chav1961.da.util.RenamingClass;
+import chav1961.da.util.ZipProcessingClass;
+import chav1961.da.util.interfaces.DAContentFormat;
+import chav1961.da.util.interfaces.RenamingInterface;
 import chav1961.purelib.basic.AndOrTree;
 import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.PureLibSettings;
-import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.SystemErrLoggerFacade;
-import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
+import chav1961.purelib.basic.exceptions.ContentException;
 import chav1961.purelib.basic.exceptions.EnvironmentException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
 import chav1961.purelib.basic.interfaces.SyntaxTreeInterface;
@@ -35,112 +36,94 @@ public class Application {
 	public static final String	ARG_OUTPUT_FORMAT = "of";
 
 	public static void main(final String[] args) {
-		// TODO Auto-generated method stub
+		System.exit(main(System.in, args, System.out, System.err));
+	}
+
+	public static int main(final InputStream is, final String[] args, final OutputStream os, final PrintStream err) {
 		final ArgParser	parserTemplate = new ApplicationArgParser();
 		
 		try{final ArgParser						parser = parserTemplate.parse(args);
-			final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>(1,1);
-			final URI							inputType = parser.isTyped(ARG_INPUT_FORMAT) ? URI.create(InputConverterInterface.CONV_SCHEMA+':'+parser.getValue(ARG_INPUT_FORMAT, InputFormat.class).name()+":/") : null;
-			final URI							outputType = parser.isTyped(ARG_OUTPUT_FORMAT) ? URI.create(OutputConverterInterface.CONV_SCHEMA+':'+parser.getValue(ARG_OUTPUT_FORMAT, InputFormat.class).name()+":/") : inputType;
+			final URI							inputType = parser.isTyped(ARG_INPUT_FORMAT) ? URI.create(InputConverterInterface.CONV_SCHEMA+':'+parser.getValue(ARG_INPUT_FORMAT, DAContentFormat.class).name()+":/") : null;
+			final URI							outputType = parser.isTyped(ARG_OUTPUT_FORMAT) ? URI.create(OutputConverterInterface.CONV_SCHEMA+':'+parser.getValue(ARG_OUTPUT_FORMAT, DAContentFormat.class).name()+":/") : inputType;
 
-			if (inputType == null) {
-				try(final Writer			sw  = new StringWriter();
-					final PrintWriter		pw = new PrintWriter(sw);
-					final LoggerFacade		logger = new SystemErrLoggerFacade(pw)) {
-					
-					try(final ZipInputStream	zis = new ZipInputStream(System.in);
-						final ZipOutputStream	zos = new ZipOutputStream(System.out)) {
-						
-						ZipEntry				ze = zis.getNextEntry();
-						
-						if (Constants.PART_TICKET.equals(ze.getName())) {
-							if (outputType == null) {
-								throw new CommandLineParametersException("Output format key is mandatory for input type *.zip, but it is not typed in the command line parameters");
-							}
-							else {
-								final SubstitutableProperties	props = new SubstitutableProperties();
-								
-								props.load(zis);
-								
-								final URI		inputZipType = URI.create(InputConverterInterface.CONV_SCHEMA+':'+props.getProperty(ARG_INPUT_FORMAT)+":/");
-								
-								while ((ze = zis.getNextEntry()) != null && !Constants.PART_LOG.equals(ze.getName())) {
-									final Reader	rdr = new InputStreamReader(zis, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-									final ZipEntry	zeOut = new ZipEntry(ze.getName());
-									
-									zeOut.setMethod(ZipEntry.DEFLATED);
-									zos.putNextEntry(zeOut);
-									
-									final Writer	wr = new OutputStreamWriter(zos, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-									
-									processEntry(rdr, wr, inputZipType, outputType, tree, logger);
-								}
-								
-								if (ze != null) {
-									pw.flush();
-									
-									final Reader	rdr = new InputStreamReader(zis, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-									final ZipEntry	zeOut = new ZipEntry(ze.getName());
-									
-									zeOut.setMethod(ZipEntry.DEFLATED);
-									zos.putNextEntry(zeOut);
-									
-									final Writer	wr = new OutputStreamWriter(zos, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-									Utils.copyStream(rdr, wr);
-									Utils.copyStream(new StringReader(sw.toString()), wr);
-								}
-								zos.finish();
-							}
-						}
-						else {
-							throw new IOException("The same first part of *.zip must be ["+Constants.PART_TICKET+"]");
-						}
-					}
+			if (ZipProcessingClass.checkZipParameters(parser)) {
+				if (outputType == null) {
+					throw new CommandLineParametersException("Argument ["+ARG_OUTPUT_FORMAT+"] must be typed to process *.zip content");
+				}
+				else {
+					processZip(System.in, System.out, inputType != null ? seekInputConverter(parser.getValue(ARG_INPUT_FORMAT, DAContentFormat.class)): null, seekOutputConverter(parser.getValue(ARG_OUTPUT_FORMAT, DAContentFormat.class)), parser);
 				}
 			}
 			else {
-				final Reader	rdr = new InputStreamReader(System.in, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-				final Writer	wr = new OutputStreamWriter(System.out, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-				
-				processEntry(rdr, wr, inputType, outputType, tree, PureLibSettings.CURRENT_LOGGER);
+				if (inputType == null || outputType == null) {
+					throw new CommandLineParametersException("Both ["+ARG_INPUT_FORMAT+"] and ["+ARG_OUTPUT_FORMAT+"] parameters must be typed to process plain content");
+				}
+				else {
+					processPlain(System.in, System.out, seekInputConverter(parser.getValue(ARG_INPUT_FORMAT, DAContentFormat.class)), seekOutputConverter(parser.getValue(ARG_OUTPUT_FORMAT, DAContentFormat.class)), new SystemErrLoggerFacade());
+				}
 			}
+			return 0;
 		} catch (IOException e) {
-			e.printStackTrace();
-			System.exit(129);
+			e.printStackTrace(err);
+			return 129;
 		} catch (CommandLineParametersException exc) {
-			System.err.println(parserTemplate.getUsage("da.converter"));
-			System.exit(128);
+			err.println(parserTemplate.getUsage("da.converter"));
+			return 128;
 		}
 	}
 
-	public static void processEntry(final Reader rdr, final Writer wr, final URI inputType, final URI outputType, final SyntaxTreeInterface<char[]> tree, final LoggerFacade logger) throws IOException {
-		for (InputConverterInterface inputItem : ServiceLoader.load(InputConverterInterface.class)) {
-			if (inputItem.canServe(inputType)) {
-				for (OutputConverterInterface outputItem : ServiceLoader.load(OutputConverterInterface.class)) {
-					if (outputItem.canServe(outputType)) {
-						try{final InputConverterInterface	ici = inputItem.newInstance(inputType);
-							final OutputConverterInterface	oci = outputItem.newInstance(outputType);
-							
-							ici.process(rdr, tree, oci, logger);
-							return;
-						} catch (EnvironmentException e) {
-							throw new IOException(e.getLocalizedMessage(), e);
-						}
-					}
-				}
-				throw new IOException("Output format ["+outputType+"] is not supported");
+	public static void processZip(final InputStream is, final OutputStream os, final InputConverterInterface ici, final OutputConverterInterface oci, final ArgParser parser) throws IOException {
+		try(final ZipInputStream	zis = new ZipInputStream(is);
+			final ZipOutputStream	zos = new ZipOutputStream(os)) {
+			final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>(1,1);
+			final RenamingInterface	ri = parser.isTyped(Constants.ARG_RENAME) ? new RenamingClass(parser.getValue(Constants.ARG_RENAME, String.class)) : (s)->s;
+			final Convertor			conv = new Convertor(parser.getValue(ARG_OUTPUT_FORMAT, DAContentFormat.class), ri, ici, oci);
+
+			ZipProcessingClass.parseZip(zis, zos, parser.getValue(Constants.ARG_EXCLUDE, Pattern.class), parser.getValue(Constants.ARG_PROCESS, Pattern.class), conv, false);
+		} catch (ContentException e) {
+			throw new IOException(e.getLocalizedMessage(), e); 
+		}
+	}
+	
+	public static void processPlain(final InputStream is, final OutputStream os, final InputConverterInterface ici, final OutputConverterInterface oci, final LoggerFacade logger) throws IOException {
+		final Reader	rdr = new InputStreamReader(is, PureLibSettings.DEFAULT_CONTENT_ENCODING);
+		final Writer	wr = new OutputStreamWriter(os, PureLibSettings.DEFAULT_CONTENT_ENCODING);
+		final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>(1,1);
+		
+		ici.process(rdr, tree, oci, logger);
+	}
+	
+	public static InputConverterInterface seekInputConverter(final DAContentFormat format) throws IOException {
+		final URI	uri = URI.create(InputConverterInterface.CONV_SCHEMA+':'+format.getSchema()+":/");
+		
+		for (InputConverterInterface item : ServiceLoader.load(InputConverterInterface.class)) {
+			if (item.canServe(uri)) {
+				return item; 
 			}
 		}
-		throw new IOException("Input format ["+inputType+"] is not supported");
+		throw new IOException("Input format ["+format+"] conversion is not supported");
+	}
+
+	public static OutputConverterInterface seekOutputConverter(final DAContentFormat format) throws IOException {
+		final URI	uri = URI.create(OutputConverterInterface.CONV_SCHEMA+':'+format.getSchema()+":/");
+		
+		for (OutputConverterInterface item : ServiceLoader.load(OutputConverterInterface.class)) {
+			if (item.canServe(uri)) {
+				return item; 
+			}
+		}
+		throw new IOException("Output format ["+format+"] conversion is not supported");
 	}
 	
 	private static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
+			new BooleanArg(Constants.ARG_DEBUG, false, "Turn on debug trace", false),
 			new BooleanArg(Constants.ARG_ZIP, false, "Parse input as *.zip format", false),
-			new StringArg(Constants.ARG_EXCLUDE, false, false, "Skip input *.zip parts and remove then from output stream"),
-			new StringArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. If missing,all the partswill be processed", "*"),
-			new EnumArg<InputFormat>(ARG_INPUT_FORMAT, InputFormat.class, false, false, "Input format. When missing, treated as *.zip with the same first 'ticket.txt' part"),
-			new EnumArg<InputFormat>(ARG_OUTPUT_FORMAT, InputFormat.class, false, false, "Output format. When missing, treated as 'no conversion'. When input format is *.zip, the output format is also *.zip"),
+			new PatternArg(Constants.ARG_EXCLUDE, false, "Skip input *.zip parts and remove then from output stream", "\uFFFF"),
+			new PatternArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. If missing,all the partswill be processed", ".*"),
+			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description"),
+			new EnumArg<DAContentFormat>(ARG_INPUT_FORMAT, DAContentFormat.class, false, false, "Input format. When missing, treated as *.zip with the same first 'ticket.txt' part"),
+			new EnumArg<DAContentFormat>(ARG_OUTPUT_FORMAT, DAContentFormat.class, false, false, "Output format. When missing, treated as 'no conversion'. When input format is *.zip, the output format is also *.zip"),
 		};
 		
 		ApplicationArgParser() {
