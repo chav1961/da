@@ -30,7 +30,10 @@ public class NTripleReader implements InputConverterInterface {
 		} 
 	}
 
-	private final int	literalCaching = props.getProperty(LITERAL_CACHING,int.class);
+	private final int		literalCaching = props.getProperty(LITERAL_CACHING,int.class);
+	private final long[]	tempLong = new long[4];
+	private final char[][]	tempChar = new char[4][];
+			
 	
 	public NTripleReader() {
 	}
@@ -85,7 +88,6 @@ public class NTripleReader implements InputConverterInterface {
 	private void processLine(final int lineNo, final char[] data, int from, final int to, final SyntaxTreeInterface<char[]> tree, final ContentWriter wr) throws IOException, SyntaxException {
 		final int	start = from;
 		int			begin;
-		long		subjId, predId, objId; 
 		
 		from = CharUtils.skipBlank(data, from, true);
 		try {
@@ -94,45 +96,80 @@ public class NTripleReader implements InputConverterInterface {
 					break;
 				case '<' :
 					begin = from + 1;
-					from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
-					subjId = insertIntoTree(data, begin, from, tree);
-					from = CharUtils.skipBlank(data, from, true);
-					
-					if (data[from] == '<') {
-						begin = from + 1;
-						from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
-						predId = insertIntoTree(data, begin, from, tree);
-						from = CharUtils.skipBlank(data, from, true);
-						
-						if (data[from] == '\"') {
-							begin = from + 1;
-							from = CharUtils.parseString(data, from, '\"', CharUtils.NULL_APPENDABLE);
-							if (from-begin < literalCaching) {
-								objId = insertIntoTree(data, begin, from, tree);
-							}
-							else {
-								objId = -1;
-							}
-						}
-						else if (data[from] == '<') {
-							begin = from + 1;
-							from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
-							objId = insertIntoTree(data, begin, from, tree);
-						}
-						else {
-							throw new SyntaxException(lineNo, from-start, "Illegal char ('\"', '<' are available only)"); 
-						}
-						
-						from = CharUtils.skipBlank(data, from, true);
-						if (data[from] == '.') {
-							wr.process(null, null);
-						}
-						else {
-							throw new SyntaxException(lineNo, from-start, "Missing '.'"); 
-						}
+					from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
+					if (from == begin + 1) {
+						throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
 					}
 					else {
-						throw new SyntaxException(lineNo, from-start, "Illegal char ('<', is available only)"); 
+						tempLong[SUBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+						from = CharUtils.skipBlank(data, from, true);
+						
+						if (data[from] == '<') {
+							begin = from + 1;
+							from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
+							if (from == begin + 1) {
+								throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
+							}
+							else {
+								tempLong[PRED_INDEX] = insertIntoTree(data, begin, from-1, tree);
+								from = CharUtils.skipBlank(data, from, true);
+								
+								if (data[from] == '\"') {
+									begin = from + 1;
+									from = CharUtils.parseString(data, begin, '\"', CharUtils.NULL_APPENDABLE);
+									if (from-begin < literalCaching) {
+										tempLong[OBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+									}
+									else {
+										tempLong[OBJ_INDEX] = DUMMY_VALUE;
+										tempChar[2] = Arrays.copyOfRange(data, begin, from-1);
+									}
+								}
+								else if (data[from] == '<') {
+									begin = from + 1;
+									from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
+									tempLong[OBJ_INDEX] = insertIntoTree(data, begin, from, tree);
+								}
+								else {
+									throw new SyntaxException(lineNo, from-start, "Illegal char ('\"', '<' are available only)"); 
+								}
+								
+								from = CharUtils.skipBlank(data, from, true);
+								if (data[from] == '^' && data[from+1] == '^') {
+									from = CharUtils.skipBlank(data, from + 2, true);
+									if (data[from] == '<') {
+										begin = from + 1;
+										from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
+										if (from == begin + 1) {
+											throw new SyntaxException(lineNo, from-start, "Empty type URI"); 
+										}
+										else {
+											tempLong[TYPE_INDEX] = insertIntoTree(data, begin, from-1, tree);
+										}
+									}
+									else {
+										throw new SyntaxException(lineNo, from-start, "Illegal char ('<' are available only)"); 
+									}
+								}
+								else if (data[from] == '@') {
+									
+								}
+								else {
+									tempLong[TYPE_INDEX] = DUMMY_VALUE; 
+								}
+								
+								from = CharUtils.skipBlank(data, from, true);
+								if (data[from] == '.') {
+									wr.process(tempLong, tempChar);
+								}
+								else {
+									throw new SyntaxException(lineNo, from-start, "Missing '.'"); 
+								}
+							}
+						}
+						else {
+							throw new SyntaxException(lineNo, from-start, "Illegal char ('<', is available only)"); 
+						}
 					}
 					break;
 				case '#' : case '\r' : case '\n' :
