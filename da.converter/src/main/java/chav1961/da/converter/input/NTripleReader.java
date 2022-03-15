@@ -33,6 +33,7 @@ public class NTripleReader implements InputConverterInterface {
 	private final int		literalCaching = props.getProperty(LITERAL_CACHING,int.class);
 	private final long[]	tempLong = new long[4];
 	private final char[][]	tempChar = new char[4][];
+	private final int[]		tempInt = new int[2];
 			
 	
 	public NTripleReader() {
@@ -152,7 +153,14 @@ public class NTripleReader implements InputConverterInterface {
 									}
 								}
 								else if (data[from] == '@') {
-									
+									from = CharUtils.skipBlank(data, from + 2, true);
+									if (Character.isLetter(data[from])) {
+										from = CharUtils.parseName(data, CharUtils.skipBlank(data, from + 1, true), tempInt);
+										tempLong[TYPE_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1]-tempInt[0], tree);
+									}
+									else {
+										throw new SyntaxException(lineNo, from-start, "Language specification is missing"); 
+									}
 								}
 								else {
 									tempLong[TYPE_INDEX] = DUMMY_VALUE; 
