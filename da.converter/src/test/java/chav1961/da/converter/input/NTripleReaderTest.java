@@ -61,11 +61,11 @@ public class NTripleReaderTest {
 												@Override public Writer detach() throws IOException {return null;}
 												
 												@Override
-												public void process(long[] longContent, char[][] charContent) throws IOException {
-													Assert.assertEquals("http://a.example/s", tree.getName(longContent[InputConverterInterface.SUBJ_INDEX]));
-													Assert.assertEquals("http://a.example/p", tree.getName(longContent[InputConverterInterface.PRED_INDEX]));
-													Assert.assertEquals("x", tree.getName(longContent[InputConverterInterface.OBJ_INDEX]));
-													Assert.assertEquals(InputConverterInterface.DUMMY_VALUE, longContent[InputConverterInterface.TYPE_INDEX]);
+												public void process(final int marks, final long[] longContent, final char[] objectContent) throws IOException {
+													Assert.assertEquals("http://a.example/s", tree.getName(longContent[ContentWriter.SUBJ_INDEX]));
+													Assert.assertEquals("http://a.example/p", tree.getName(longContent[ContentWriter.PRED_INDEX]));
+													Assert.assertEquals("x", tree.getName(longContent[ContentWriter.OBJ_INDEX]));
+													Assert.assertEquals(ContentWriter.DUMMY_VALUE, longContent[ContentWriter.TYPE_INDEX]);
 												}
 											};
 		
@@ -80,11 +80,11 @@ public class NTripleReaderTest {
 												@Override public Writer detach() throws IOException {return null;}
 												
 												@Override
-												public void process(long[] longContent, char[][] charContent) throws IOException {
-													Assert.assertEquals("http://a.example/s", tree.getName(longContent[InputConverterInterface.SUBJ_INDEX]));
-													Assert.assertEquals("http://a.example/p", tree.getName(longContent[InputConverterInterface.PRED_INDEX]));
-													Assert.assertEquals("\\u0000\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\u0008\\t\\u000B\\u000C\\u000E\\u000F\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001A\\u001B\\u001C\\u001D\\u001E\\u001F", new String(charContent[InputConverterInterface.OBJ_INDEX]));
-													Assert.assertEquals(InputConverterInterface.DUMMY_VALUE, longContent[InputConverterInterface.TYPE_INDEX]);
+												public void process(final int marks, final long[] longContent, final char[] objectContent) throws IOException {
+													Assert.assertEquals("http://a.example/s", tree.getName(longContent[ContentWriter.SUBJ_INDEX]));
+													Assert.assertEquals("http://a.example/p", tree.getName(longContent[ContentWriter.PRED_INDEX]));
+													Assert.assertEquals("\\u0000\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\u0008\\t\\u000B\\u000C\\u000E\\u000F\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001A\\u001B\\u001C\\u001D\\u001E\\u001F", new String(objectContent));
+													Assert.assertEquals(ContentWriter.DUMMY_VALUE, longContent[ContentWriter.TYPE_INDEX]);
 												}
 											};
 		
@@ -99,11 +99,11 @@ public class NTripleReaderTest {
 												@Override public Writer detach() throws IOException {return null;}
 												
 												@Override
-												public void process(long[] longContent, char[][] charContent) throws IOException {
-													Assert.assertEquals("http://a.example/s", tree.getName(longContent[InputConverterInterface.SUBJ_INDEX]));
-													Assert.assertEquals("http://a.example/p", tree.getName(longContent[InputConverterInterface.PRED_INDEX]));
-													Assert.assertEquals(" !\\\"#$%&():;<=>?@[]^_`{|}~", tree.getName(longContent[InputConverterInterface.OBJ_INDEX]));
-													Assert.assertEquals(InputConverterInterface.DUMMY_VALUE, longContent[InputConverterInterface.TYPE_INDEX]);
+												public void process(final int marks, final long[] longContent, final char[] objectContent) throws IOException {
+													Assert.assertEquals("http://a.example/s", tree.getName(longContent[ContentWriter.SUBJ_INDEX]));
+													Assert.assertEquals("http://a.example/p", tree.getName(longContent[ContentWriter.PRED_INDEX]));
+													Assert.assertEquals(" !\\\"#$%&():;<=>?@[]^_`{|}~", tree.getName(longContent[ContentWriter.OBJ_INDEX]));
+													Assert.assertEquals(ContentWriter.DUMMY_VALUE, longContent[ContentWriter.TYPE_INDEX]);
 												}
 											};
 		
@@ -118,11 +118,11 @@ public class NTripleReaderTest {
 												@Override public Writer detach() throws IOException {return null;}
 												
 												@Override
-												public void process(long[] longContent, char[][] charContent) throws IOException {
-													Assert.assertEquals("http://a.example/s", tree.getName(longContent[InputConverterInterface.SUBJ_INDEX]));
-													Assert.assertEquals("http://a.example/p", tree.getName(longContent[InputConverterInterface.PRED_INDEX]));
-													Assert.assertEquals("false", tree.getName(longContent[InputConverterInterface.OBJ_INDEX]));
-													Assert.assertEquals("http://www.w3.org/2001/XMLSchema#boolean", tree.getName(longContent[InputConverterInterface.TYPE_INDEX]));
+												public void process(final int marks, final long[] longContent, final char[] objectContent) throws IOException {
+													Assert.assertEquals("http://a.example/s", tree.getName(longContent[ContentWriter.SUBJ_INDEX]));
+													Assert.assertEquals("http://a.example/p", tree.getName(longContent[ContentWriter.PRED_INDEX]));
+													Assert.assertEquals("false", tree.getName(longContent[ContentWriter.OBJ_INDEX]));
+													Assert.assertEquals("http://www.w3.org/2001/XMLSchema#boolean", tree.getName(longContent[ContentWriter.TYPE_INDEX]));
 												}
 											};
 		
@@ -137,11 +137,11 @@ public class NTripleReaderTest {
 												@Override public Writer detach() throws IOException {return null;}
 												
 												@Override
-												public void process(long[] longContent, char[][] charContent) throws IOException {
-													Assert.assertEquals("http://a.example/s", tree.getName(longContent[InputConverterInterface.SUBJ_INDEX]));
-													Assert.assertEquals("http://a.example/p", tree.getName(longContent[InputConverterInterface.PRED_INDEX]));
-													Assert.assertEquals("true", tree.getName(longContent[InputConverterInterface.OBJ_INDEX]));
-													Assert.assertEquals("http://www.w3.org/2001/XMLSchema#boolean", tree.getName(longContent[InputConverterInterface.TYPE_INDEX]));
+												public void process(final int marks, final long[] longContent, final char[] objectContent) throws IOException {
+													Assert.assertEquals("http://a.example/s", tree.getName(longContent[ContentWriter.SUBJ_INDEX]));
+													Assert.assertEquals("http://a.example/p", tree.getName(longContent[ContentWriter.PRED_INDEX]));
+													Assert.assertEquals("true", tree.getName(longContent[ContentWriter.OBJ_INDEX]));
+													Assert.assertEquals("http://www.w3.org/2001/XMLSchema#boolean", tree.getName(longContent[ContentWriter.TYPE_INDEX]));
 												}
 											};
 		

@@ -32,7 +32,6 @@ public class NTripleReader implements InputConverterInterface {
 
 	private final int		literalCaching = props.getProperty(LITERAL_CACHING,int.class);
 	private final long[]	tempLong = new long[4];
-	private final char[][]	tempChar = new char[4][];
 	private final int[]		tempInt = new int[2];
 			
 	
@@ -88,7 +87,8 @@ public class NTripleReader implements InputConverterInterface {
 	
 	private void processLine(final int lineNo, final char[] data, int from, final int to, final SyntaxTreeInterface<char[]> tree, final ContentWriter wr) throws IOException, SyntaxException {
 		final int	start = from;
-		int			begin;
+		char[]		tempChar = null;
+		int			begin, flags = (1 << ContentWriter.SUBJ_INDEX) | (1 << ContentWriter.PRED_INDEX);
 		
 		from = CharUtils.skipBlank(data, from, true);
 		try {
@@ -102,7 +102,7 @@ public class NTripleReader implements InputConverterInterface {
 						throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
 					}
 					else {
-						tempLong[SUBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+						tempLong[ContentWriter.SUBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
 						from = CharUtils.skipBlank(data, from, true);
 						
 						if (data[from] == '<') {
@@ -112,29 +112,34 @@ public class NTripleReader implements InputConverterInterface {
 								throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
 							}
 							else {
-								tempLong[PRED_INDEX] = insertIntoTree(data, begin, from-1, tree);
+								tempLong[ContentWriter.PRED_INDEX] = insertIntoTree(data, begin, from-1, tree);
 								from = CharUtils.skipBlank(data, from, true);
 								
 								if (data[from] == '\"') {
 									begin = from + 1;
 									from = CharUtils.parseString(data, begin, '\"', CharUtils.NULL_APPENDABLE);
 									if (from-begin < literalCaching) {
-										tempLong[OBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+										tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+										flags |= 1 << ContentWriter.OBJ_INDEX;
 									}
 									else {
-										tempLong[OBJ_INDEX] = DUMMY_VALUE;
-										tempChar[2] = Arrays.copyOfRange(data, begin, from-1);
+										tempLong[ContentWriter.OBJ_INDEX] = ContentWriter.DUMMY_VALUE;
+										tempChar = Arrays.copyOfRange(data, begin, from-1);
 									}
 								}
 								else if (data[from] == '<') {
 									begin = from + 1;
 									from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
-									tempLong[OBJ_INDEX] = insertIntoTree(data, begin, from, tree);
+									tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from, tree);
 								}
 								else {
 									throw new SyntaxException(lineNo, from-start, "Illegal char ('\"', '<' are available only)"); 
 								}
 								
+								tempLong[ContentWriter.TYPE_INDEX] = ContentWriter.DUMMY_VALUE; 
+								tempLong[ContentWriter.LANG_INDEX] = ContentWriter.DUMMY_VALUE; 
+								tempLong[ContentWriter.CONTEXT_INDEX] = ContentWriter.DUMMY_VALUE; 
+
 								from = CharUtils.skipBlank(data, from, true);
 								if (data[from] == '^' && data[from+1] == '^') {
 									from = CharUtils.skipBlank(data, from + 2, true);
@@ -145,7 +150,8 @@ public class NTripleReader implements InputConverterInterface {
 											throw new SyntaxException(lineNo, from-start, "Empty type URI"); 
 										}
 										else {
-											tempLong[TYPE_INDEX] = insertIntoTree(data, begin, from-1, tree);
+											tempLong[ContentWriter.TYPE_INDEX] = insertIntoTree(data, begin, from-1, tree);
+											flags |= 1 << ContentWriter.TYPE_INDEX;
 										}
 									}
 									else {
@@ -156,19 +162,17 @@ public class NTripleReader implements InputConverterInterface {
 									from = CharUtils.skipBlank(data, from + 2, true);
 									if (Character.isLetter(data[from])) {
 										from = CharUtils.parseName(data, CharUtils.skipBlank(data, from + 1, true), tempInt);
-										tempLong[TYPE_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1]-tempInt[0], tree);
+										tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1]-tempInt[0], tree);
+										flags |= 1 << ContentWriter.LANG_INDEX;
 									}
 									else {
 										throw new SyntaxException(lineNo, from-start, "Language specification is missing"); 
 									}
 								}
-								else {
-									tempLong[TYPE_INDEX] = DUMMY_VALUE; 
-								}
 								
 								from = CharUtils.skipBlank(data, from, true);
 								if (data[from] == '.') {
-									wr.process(tempLong, tempChar);
+									wr.process(flags, tempLong, tempChar);
 								}
 								else {
 									throw new SyntaxException(lineNo, from-start, "Missing '.'"); 

@@ -34,14 +34,14 @@ public class NTripleWriter implements OutputConverterInterface {
 	}
 
 	@Override
-	public void process(final long[] longContent, final char[][] charContent) throws IOException {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
 	public Writer detach() throws IOException {
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	@Override
+	public void process(int marks, long[] longContent, char[] objectContent) throws IOException {
+		// TODO Auto-generated method stub
+		
 	}
 }
