@@ -31,7 +31,7 @@ public class NTripleReader implements InputConverterInterface {
 	}
 
 	private final int		literalCaching = props.getProperty(LITERAL_CACHING,int.class);
-	private final long[]	tempLong = new long[4];
+	private final long[]	tempLong = new long[6];
 	private final int[]		tempInt = new int[2];
 			
 	
@@ -102,7 +102,7 @@ public class NTripleReader implements InputConverterInterface {
 						throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
 					}
 					else {
-						tempLong[ContentWriter.SUBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+						tempLong[ContentWriter.SUBJ_INDEX] = insertIntoTree(data, begin, from-1, tree, true);
 						from = CharUtils.skipBlank(data, from, true);
 						
 						if (data[from] == '<') {
@@ -112,14 +112,14 @@ public class NTripleReader implements InputConverterInterface {
 								throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
 							}
 							else {
-								tempLong[ContentWriter.PRED_INDEX] = insertIntoTree(data, begin, from-1, tree);
+								tempLong[ContentWriter.PRED_INDEX] = insertIntoTree(data, begin, from - 1, tree, true);
 								from = CharUtils.skipBlank(data, from, true);
 								
 								if (data[from] == '\"') {
 									begin = from + 1;
 									from = CharUtils.parseString(data, begin, '\"', CharUtils.NULL_APPENDABLE);
 									if (from-begin < literalCaching) {
-										tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from-1, tree);
+										tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from - 1, tree, false);
 										flags |= 1 << ContentWriter.OBJ_INDEX;
 									}
 									else {
@@ -130,7 +130,7 @@ public class NTripleReader implements InputConverterInterface {
 								else if (data[from] == '<') {
 									begin = from + 1;
 									from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
-									tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from, tree);
+									tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from - 1, tree, true);
 								}
 								else {
 									throw new SyntaxException(lineNo, from-start, "Illegal char ('\"', '<' are available only)"); 
@@ -150,7 +150,7 @@ public class NTripleReader implements InputConverterInterface {
 											throw new SyntaxException(lineNo, from-start, "Empty type URI"); 
 										}
 										else {
-											tempLong[ContentWriter.TYPE_INDEX] = insertIntoTree(data, begin, from-1, tree);
+											tempLong[ContentWriter.TYPE_INDEX] = insertIntoTree(data, begin, from-1, tree, true);
 											flags |= 1 << ContentWriter.TYPE_INDEX;
 										}
 									}
@@ -159,10 +159,20 @@ public class NTripleReader implements InputConverterInterface {
 									}
 								}
 								else if (data[from] == '@') {
-									from = CharUtils.skipBlank(data, from + 2, true);
+									from = CharUtils.skipBlank(data, from + 1, true);
 									if (Character.isLetter(data[from])) {
-										from = CharUtils.parseName(data, CharUtils.skipBlank(data, from + 1, true), tempInt);
-										tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1]-tempInt[0], tree);
+										from = CharUtils.parseName(data, CharUtils.skipBlank(data, from, true), tempInt);
+										
+										if (data[from] == '-') {
+											final int	temp = tempInt[0];
+											
+											from = CharUtils.parseName(data, CharUtils.skipBlank(data, from + 1, true), tempInt);
+											tempInt[0] = temp;
+											tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1] + 1, tree, false);
+										}
+										else {
+											tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1] + 1, tree, false);
+										}
 										flags |= 1 << ContentWriter.LANG_INDEX;
 									}
 									else {
@@ -194,11 +204,23 @@ public class NTripleReader implements InputConverterInterface {
 		}
 	}
 	
-	private long insertIntoTree(final char[] data, final int from, final int to, final SyntaxTreeInterface<char[]> tree) {
+	private long insertIntoTree(final char[] data, final int from, final int to, final SyntaxTreeInterface<char[]> tree, final boolean checkURI) throws SyntaxException, IllegalArgumentException, NullPointerException {
 		final long	id = tree.seekName(data, from, to);
 		
 		if (id < 0) {
-			return tree.placeName(data, from, to, Arrays.copyOfRange(data, from, to));
+			final long	result = tree.placeName(data, from, to, Arrays.copyOfRange(data, from, to));
+			
+			if (checkURI) {
+				final String	s = CharUtils.unescapeStringContent(tree.getName(result));
+				
+				try{if (!URI.create(s).isAbsolute()) {
+						throw new SyntaxException(SyntaxException.toRow(data, from), SyntaxException.toCol(data, from), "URI ["+s+"] is not absolute");
+					}
+				} catch (IllegalArgumentException exc) {
+					throw new SyntaxException(SyntaxException.toRow(data, from), SyntaxException.toCol(data, from), exc.getLocalizedMessage(), exc); 
+				}
+			}
+			return result;
 		}
 		else {
 			return id;
