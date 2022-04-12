@@ -21,6 +21,7 @@ import chav1961.purelib.basic.interfaces.SyntaxTreeInterface;
 public class NTripleReader implements InputConverterInterface {
 	private static final URI						SERVE_URI = URI.create(CONV_SCHEMA+":"+DAContentFormat.N_TRIPLES.getSchema()+":/");
 	private static final String						LITERAL_CACHING = "object.literal.length.caching";
+	private static final char[]						DUMMY_STRING = "".toCharArray();
 	private static final SubstitutableProperties	props; 
 
 	static {
@@ -94,113 +95,130 @@ public class NTripleReader implements InputConverterInterface {
 		try {
 			switch (data[from]) {
 				case '_' :
+					from = parseAnon(lineNo, data, from, tree, ContentWriter.SUBJ_INDEX);
 					break;
 				case '<' :
+					from = parseURI(lineNo, data, from, tree, ContentWriter.SUBJ_INDEX);
+					break;
+				case '#' : case '\r' : case '\n' :
+					return;
+				default :
+					throw new SyntaxException(lineNo, from-start, "Illegal char ('_', '<', '#' are available only)"); 
+			}
+			
+			switch (data[from]) {
+				case '_' :
+					from = parseAnon(lineNo, data, from, tree, ContentWriter.PRED_INDEX);
+					break;
+				case '<' :
+					from = parseURI(lineNo, data, from, tree, ContentWriter.PRED_INDEX);
+					break;
+				case '#' : case '\r' : case '\n' :
+					throw new SyntaxException(lineNo, from-start, "Missing predicate"); 
+				default :
+					throw new SyntaxException(lineNo, from-start, "Illegal char ('_', '<', are available only)"); 
+			}
+
+			tempLong[ContentWriter.OBJ_INDEX] = ContentWriter.DUMMY_VALUE;
+			tempLong[ContentWriter.TYPE_INDEX] = ContentWriter.DUMMY_VALUE;
+			tempLong[ContentWriter.LANG_INDEX] = ContentWriter.DUMMY_VALUE;
+			tempLong[ContentWriter.CONTEXT_INDEX] = ContentWriter.DUMMY_VALUE;
+			
+			switch (data[from]) {
+				case '_' :
+					from = parseAnon(lineNo, data, from, tree, ContentWriter.OBJ_INDEX);
+					break;
+				case '<' :
+					from = parseURI(lineNo, data, from, tree, ContentWriter.OBJ_INDEX);
+					break;
+				case '\"' :
 					begin = from + 1;
-					from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
-					if (from == begin + 1) {
-						throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
+					from = CharUtils.parseString(data, begin, '\"', CharUtils.NULL_APPENDABLE);
+					if (from == begin + 1) {	// empty string
+						tempLong[ContentWriter.OBJ_INDEX] = ContentWriter.DUMMY_VALUE;
+						tempChar = DUMMY_STRING;
+					}
+					else if (from-begin < literalCaching) {
+						tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from - 1, tree, false);
+						flags |= 1 << ContentWriter.OBJ_INDEX;
 					}
 					else {
-						tempLong[ContentWriter.SUBJ_INDEX] = insertIntoTree(data, begin, from-1, tree, true);
-						from = CharUtils.skipBlank(data, from, true);
-						
+						tempLong[ContentWriter.OBJ_INDEX] = ContentWriter.DUMMY_VALUE;
+						tempChar = Arrays.copyOfRange(data, begin, from - 1);
+					}
+					if (data[from] == '^' && data[from + 1] == '^') {
+						from = CharUtils.skipBlank(data, from + 2, true);
 						if (data[from] == '<') {
-							begin = from + 1;
-							from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
-							if (from == begin + 1) {
-								throw new SyntaxException(lineNo, from-start, "Empty subj URI"); 
-							}
-							else {
-								tempLong[ContentWriter.PRED_INDEX] = insertIntoTree(data, begin, from - 1, tree, true);
-								from = CharUtils.skipBlank(data, from, true);
-								
-								if (data[from] == '\"') {
-									begin = from + 1;
-									from = CharUtils.parseString(data, begin, '\"', CharUtils.NULL_APPENDABLE);
-									if (from-begin < literalCaching) {
-										tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from - 1, tree, false);
-										flags |= 1 << ContentWriter.OBJ_INDEX;
-									}
-									else {
-										tempLong[ContentWriter.OBJ_INDEX] = ContentWriter.DUMMY_VALUE;
-										tempChar = Arrays.copyOfRange(data, begin, from-1);
-									}
-								}
-								else if (data[from] == '<') {
-									begin = from + 1;
-									from = CharUtils.parseString(data, from, '>', CharUtils.NULL_APPENDABLE);
-									tempLong[ContentWriter.OBJ_INDEX] = insertIntoTree(data, begin, from - 1, tree, true);
-								}
-								else {
-									throw new SyntaxException(lineNo, from-start, "Illegal char ('\"', '<' are available only)"); 
-								}
-								
-								tempLong[ContentWriter.TYPE_INDEX] = ContentWriter.DUMMY_VALUE; 
-								tempLong[ContentWriter.LANG_INDEX] = ContentWriter.DUMMY_VALUE; 
-								tempLong[ContentWriter.CONTEXT_INDEX] = ContentWriter.DUMMY_VALUE; 
-
-								from = CharUtils.skipBlank(data, from, true);
-								if (data[from] == '^' && data[from+1] == '^') {
-									from = CharUtils.skipBlank(data, from + 2, true);
-									if (data[from] == '<') {
-										begin = from + 1;
-										from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
-										if (from == begin + 1) {
-											throw new SyntaxException(lineNo, from-start, "Empty type URI"); 
-										}
-										else {
-											tempLong[ContentWriter.TYPE_INDEX] = insertIntoTree(data, begin, from-1, tree, true);
-											flags |= 1 << ContentWriter.TYPE_INDEX;
-										}
-									}
-									else {
-										throw new SyntaxException(lineNo, from-start, "Illegal char ('<' are available only)"); 
-									}
-								}
-								else if (data[from] == '@') {
-									from = CharUtils.skipBlank(data, from + 1, true);
-									if (Character.isLetter(data[from])) {
-										from = CharUtils.parseName(data, CharUtils.skipBlank(data, from, true), tempInt);
-										
-										if (data[from] == '-') {
-											final int	temp = tempInt[0];
-											
-											from = CharUtils.parseName(data, CharUtils.skipBlank(data, from + 1, true), tempInt);
-											tempInt[0] = temp;
-											tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1] + 1, tree, false);
-										}
-										else {
-											tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1] + 1, tree, false);
-										}
-										flags |= 1 << ContentWriter.LANG_INDEX;
-									}
-									else {
-										throw new SyntaxException(lineNo, from-start, "Language specification is missing"); 
-									}
-								}
-								
-								from = CharUtils.skipBlank(data, from, true);
-								if (data[from] == '.') {
-									wr.process(flags, tempLong, tempChar);
-								}
-								else {
-									throw new SyntaxException(lineNo, from-start, "Missing '.'"); 
-								}
-							}
+							from = parseURI(lineNo, data, from, tree, ContentWriter.TYPE_INDEX);
+							flags |= 1 << ContentWriter.TYPE_INDEX;
 						}
 						else {
-							throw new SyntaxException(lineNo, from-start, "Illegal char ('<', is available only)"); 
+							throw new SyntaxException(lineNo, from-start, "Illegal char ('<' are available only)"); 
+						}
+					}
+					else if (data[from] == '@') {
+						from = CharUtils.skipBlank(data, from + 1, true);
+						if (Character.isLetter(data[from])) {
+							from = CharUtils.parseName(data, CharUtils.skipBlank(data, from, true), tempInt);
+							
+							if (data[from] == '-') {
+								final int	temp = tempInt[0];
+								
+								from = CharUtils.parseName(data, CharUtils.skipBlank(data, from + 1, true), tempInt);
+								tempInt[0] = temp;
+								tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1] + 1, tree, false);
+							}
+							else {
+								tempLong[ContentWriter.LANG_INDEX] = insertIntoTree(data, tempInt[0], tempInt[1] + 1, tree, false);
+							}
+							flags |= 1 << ContentWriter.LANG_INDEX;
+						}
+						else {
+							throw new SyntaxException(lineNo, from-start, "Language specification is missing"); 
 						}
 					}
 					break;
 				case '#' : case '\r' : case '\n' :
-					break;
+					throw new SyntaxException(lineNo, from-start, "Missing predicate"); 
 				default :
-					throw new SyntaxException(lineNo, from-start, "Illegal char ('_', '<', '#' are available only)"); 
+					throw new SyntaxException(lineNo, from-start, "Illegal char ('_', '<', are available only)"); 
+			}
+			
+			from = CharUtils.skipBlank(data, from, true);
+			if (data[from] == '.') {
+				wr.process(flags, tempLong, tempChar);
+			}
+			else {
+				throw new SyntaxException(lineNo, from-start, "Missing '.'"); 
 			}
 		} catch (IllegalArgumentException exc) {
 			throw new SyntaxException(lineNo, from-start, exc.getLocalizedMessage(), exc); 
+		}
+	}
+	
+	private int parseURI(final int lineNo, final char[] data, int from, final SyntaxTreeInterface<char[]> tree, final int tempLongIndex) throws SyntaxException, IllegalArgumentException, NullPointerException {
+		final int 	begin = from + 1;
+		
+		from = CharUtils.parseString(data, begin, '>', CharUtils.NULL_APPENDABLE);
+		if (from == begin + 1) {
+			throw new SyntaxException(lineNo, SyntaxException.toCol(data, from), "Empty URI"); 
+		}
+		else {
+			tempLong[tempLongIndex] = insertIntoTree(data, begin, from - 1, tree, true);
+			return CharUtils.skipBlank(data, from, true);
+		}
+	}
+
+	private int parseAnon(final int lineNo, final char[] data, int from, final SyntaxTreeInterface<char[]> tree, final int tempLongIndex) throws SyntaxException, IllegalArgumentException, NullPointerException {
+		final int 	begin = from;
+		
+		from = CharUtils.parseName(data, from + 2, tempInt);
+		if (from == begin + 2) {
+			throw new SyntaxException(lineNo, SyntaxException.toCol(data, from), "Empty anon name"); 
+		}
+		else {
+			tempLong[tempLongIndex] = insertIntoTree(data, begin, from, tree, false);
+			return CharUtils.skipBlank(data, from, true);
 		}
 	}
 	

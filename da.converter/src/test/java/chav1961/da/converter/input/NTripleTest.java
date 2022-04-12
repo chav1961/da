@@ -7,6 +7,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.Writer;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -18,6 +19,7 @@ import chav1961.da.converter.interfaces.ContentWriter;
 import chav1961.da.converter.interfaces.InputConverterInterface;
 import chav1961.da.util.interfaces.DAContentFormat;
 import chav1961.purelib.basic.AndOrTree;
+import chav1961.purelib.basic.URIUtils;
 import chav1961.purelib.basic.exceptions.EnvironmentException;
 import chav1961.purelib.basic.interfaces.SyntaxTreeInterface;
 
@@ -248,6 +250,32 @@ public class NTripleTest {
 	}
 
 	@Test
+	public void anonTest() throws EnvironmentException, NullPointerException, IllegalArgumentException, IOException {
+		final NTripleReader					rdrFactory = new NTripleReader(); 
+		final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>();
+		final InputConverterInterface		ici = rdrFactory.newInstance(URI.create(InputConverterInterface.CONV_SCHEMA+":"+DAContentFormat.N_TRIPLES.getSchema()+":/"));
+
+		checkContent("_:a  <http://example/p> <http://example/o> .\n", ici, tree, (marks, longContent, objectContent)->{
+			Assert.assertEquals(tree.seekName("_:a"), longContent[ContentProcessor.SUBJ_INDEX]);
+			Assert.assertEquals(tree.seekName("http://example/p"), longContent[ContentProcessor.PRED_INDEX]);
+			Assert.assertEquals(tree.seekName("http://example/o"), longContent[ContentProcessor.OBJ_INDEX]);
+			Assert.assertEquals(ContentProcessor.DUMMY_VALUE, longContent[ContentProcessor.LANG_INDEX]);
+			Assert.assertEquals(ContentProcessor.DUMMY_VALUE, longContent[ContentProcessor.TYPE_INDEX]);
+			Assert.assertEquals(ContentProcessor.DUMMY_VALUE, longContent[ContentProcessor.CONTEXT_INDEX]);
+		});
+		
+		checkContent("<http://example/s> <http://example/p> _:a .\n", ici, tree, (marks, longContent, objectContent)->{
+			Assert.assertEquals(tree.seekName("http://example/s"), longContent[ContentProcessor.SUBJ_INDEX]);
+			Assert.assertEquals(tree.seekName("http://example/p"), longContent[ContentProcessor.PRED_INDEX]);
+			Assert.assertEquals(tree.seekName("_:a"), longContent[ContentProcessor.OBJ_INDEX]);
+			Assert.assertEquals(ContentProcessor.DUMMY_VALUE, longContent[ContentProcessor.LANG_INDEX]);
+			Assert.assertEquals(ContentProcessor.DUMMY_VALUE, longContent[ContentProcessor.TYPE_INDEX]);
+			Assert.assertEquals(ContentProcessor.DUMMY_VALUE, longContent[ContentProcessor.CONTEXT_INDEX]);
+		});
+		
+	}	
+	
+	@Test
 	public void exceptionTest() throws EnvironmentException, NullPointerException, IllegalArgumentException, IOException {
 		final NTripleReader					rdrFactory = new NTripleReader(); 
 		final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>();
@@ -377,6 +405,21 @@ public class NTripleTest {
 			Assert.fail("Mandatory exception was not detected (bad URI)");
 		} catch (IOException exc) {
 		}
+
+		try{checkContent("<http://example/s> <http://example/p> _:1a .\n", ici, tree, (marks, longContent, objectContent)->{});
+			Assert.fail("Mandatory exception was not detected (bad anon name)");
+		} catch (IOException exc) {
+		}
+	}	
+
+	@Test
+	public void complexTest() throws EnvironmentException, NullPointerException, IllegalArgumentException, IOException, URISyntaxException {
+		final NTripleReader					rdrFactory = new NTripleReader(); 
+		final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>();
+		final InputConverterInterface		ici = rdrFactory.newInstance(URI.create(InputConverterInterface.CONV_SCHEMA+":"+DAContentFormat.N_TRIPLES.getSchema()+":/"));
+		final char[]						content = URIUtils.loadCharsFromURI(this.getClass().getResource("nt-syntax-subm-01.nt").toURI());
+		
+		checkContent(new String(content), ici, tree, (marks, longContent, objectContent)->{});
 	}	
 	
 	private void checkContent(final String content, final InputConverterInterface ici, final SyntaxTreeInterface<char[]> tree, final ContentProcessor cp) throws IOException {
