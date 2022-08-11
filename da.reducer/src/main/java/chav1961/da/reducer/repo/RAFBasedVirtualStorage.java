@@ -4,11 +4,15 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.locks.Lock;
 
+import chav1961.da.reducer.repo.interfaces.VirtualStorageInterface;
 import chav1961.purelib.basic.SubstitutableProperties;
 
 public class RAFBasedVirtualStorage implements VirtualStorageInterface<Object> {
+	public static final String	KEY_INITIAL_SIZE = "initialSize";
+	public static final String	KEY_EXTENT_SIZE = "extentSize";
+	public static final String	KEY_NUMBER_OF_EXTENTS = "numberOfExtents";
+	
 	public RAFBasedVirtualStorage(final File raf, final SubstitutableProperties props, final boolean readOnly) {
-		
 	}
 	
 	

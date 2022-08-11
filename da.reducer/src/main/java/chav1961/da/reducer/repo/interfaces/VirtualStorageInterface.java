@@ -1,4 +1,4 @@
-package chav1961.da.reducer.repo;
+package chav1961.da.reducer.repo.interfaces;
 
 import java.io.Closeable;
 import java.io.Flushable;
