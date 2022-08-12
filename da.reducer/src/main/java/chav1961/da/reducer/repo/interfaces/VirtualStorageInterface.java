@@ -26,10 +26,10 @@ public interface VirtualStorageInterface<T> extends Closeable, Flushable, Execut
 		allocate(loAddress, size, parts);
 	}
 	
-	void free(final long address) throws IOException;
+	void free(final long address, final long size) throws IOException;
 
-	default void free(final long hiAddress, final long loAddress) throws IOException {
-		free(loAddress);
+	default void free(final long hiAddress, final long loAddress, final long size) throws IOException {
+		free(loAddress, size);
 	}
 
 	Lock lockRead(final long address, final long size) throws IOException, InterruptedException;
