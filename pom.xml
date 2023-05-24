@@ -27,5 +27,6 @@
   	<module>da.sender</module>
   	<module>da.manager</module>
   	<module>da.source</module>
+  	<module>da.crowler</module>
   </modules>
 </project>

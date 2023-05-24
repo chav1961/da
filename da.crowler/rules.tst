@@ -1,0 +1,3 @@
+// шаблон пути файла: шаблон пути XML -> выходной шаблон
+/ads/${module}/locale/*/*.xml:AdsDefinition/AdsLocalizingBundleDefinition/String[@Id=${id}]/Value[@Language=${lang}]/${content}-><http://zzz/${module}/mls/${id}> <http://content> "${content}"@${lang}.
+/dds/${module}/locale/*.xml:AdsDefinition/AdsLocalizingBundleDefinition/String[@Id=${id}]/Value[@Language=${lang}]/${content}-><http://zzz/${module}/mls/${id}> <http://content> "${content}"@${lang}.
