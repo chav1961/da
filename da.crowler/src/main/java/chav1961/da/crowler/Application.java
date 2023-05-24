@@ -41,10 +41,30 @@ public class Application {
 	public static final String		ARG_OUTPUT_FILE = "o";
 	public static final String		ARG_DEBUG = "d";
 
+	public static final String		KEY_HEAD = "@head";
+	public static final String		KEY_BODY = "@body";
+	public static final String		KEY_TAIL = "@tail";
+	
 	@FunctionalInterface
 	public interface TriPredicate<T, U, V> {
 	    boolean test(T t, U u, V v);
 	}	
+	
+	public static enum Parts {
+		HEAD(KEY_HEAD),
+		BODY(KEY_BODY),
+		TAIL(KEY_TAIL);
+		
+		private final String	partLabel;
+		
+		private Parts(final String partLabel) {
+			this.partLabel = partLabel;
+		}
+		
+		public String getPartLabel() {
+			return partLabel;
+		}
+	}
 	
 	private static final Pattern	SUBST = Pattern.compile("\\$\\{(\\w+)\\}");
 	private static final Pattern	ATTRS = Pattern.compile("(\\w+)\\[(.+)\\]");
@@ -52,21 +72,25 @@ public class Application {
 	private static final char[]		NULL_ARRAY = "".toCharArray();
 
 	public static void main(final String[] args) {
-		final ArgParser			parserTemplate = new ApplicationArgParser();
+		final ArgParser				parserTemplate = new ApplicationArgParser();
+		final Map<String,char[]>	variables = new HashMap<>();
 		
 		try{final ArgParser		parser = parserTemplate.parse(args);
-			final Rule[]		rules;
-			final int			count;
-		
+			final RuleSet		rules;
+
+			fillVariables(variables);
 			if (parser.isTyped(ARG_RULES_FILE)) {
 				try(final InputStream	is = new FileInputStream(parser.getValue(ARG_RULES_FILE, File.class))) {
-					rules = loadRules(is);
+					rules = loadRules(is, variables);
 				}
 			}
 			else {
-				rules = loadRules(System.in);
+				rules = loadRules(System.in, variables);
 			}
-			long startTime = System.currentTimeMillis();
+			
+			final long 	startTime = System.currentTimeMillis();
+			final int	count;
+			
 			if (parser.isTyped(ARG_OUTPUT_FILE)) {
 				try(final OutputStream	os = new FileOutputStream(parser.getValue(ARG_OUTPUT_FILE, File.class))) {
 					count = uploadModel(parser.getValue(ARG_SOURCE_DIR, File.class), rules, os, parser.getValue(ARG_DEBUG, boolean.class));
@@ -75,9 +99,9 @@ public class Application {
 			else {
 				count = uploadModel(parser.getValue(ARG_SOURCE_DIR, File.class), rules, System.out, parser.getValue(ARG_DEBUG, boolean.class));
 			}
-			long endTime = System.currentTimeMillis();
+			
 			if (parser.getValue(ARG_DEBUG, boolean.class)) {
-				System.err.println("Total files processed: "+count+", duration="+(endTime-startTime)+"msec");
+				System.err.println("Total files processed: "+count+", duration="+(System.currentTimeMillis()-startTime)+"msec");
 			}
 		} catch (IOException | SyntaxException e) {
 			e.printStackTrace();
@@ -89,19 +113,67 @@ public class Application {
 		}
 	}
 
-	private static Rule[] loadRules(final InputStream in) throws IOException, SyntaxException {
+	private static void fillVariables(final Map<String, char[]> variables) {
+		for( Entry<String, String> item : System.getenv().entrySet()) {
+			variables.put(item.getKey(), item.getValue().toCharArray());
+		}
+		for( Entry<Object, Object> item : System.getProperties().entrySet()) {
+			variables.put(item.getKey().toString(), item.getValue().toString().toCharArray());
+		}
+	}
+
+	private static RuleSet loadRules(final InputStream in, final Map<String,char[]> variables) throws IOException, SyntaxException {
 		final List<Template>		rules = new ArrayList<>();
+		final StringBuilder			before = new StringBuilder(), after = new StringBuilder();
 		
 		try(final Reader			rdr = new InputStreamReader(in, PureLibSettings.DEFAULT_CONTENT_ENCODING);
 			final BufferedReader	brdr = new BufferedReader(rdr)) {
+			final StringBuilder		sb = new StringBuilder();
+			Parts	currentPart = Parts.BODY;
 			String	line;
 			int		lineNo = 1;
 			
 			while ((line = brdr.readLine()) != null) {
-				final String	trimmed = line.trim();
+				String	trimmed = line.trim();
 				
 				if (!trimmed.isEmpty() && !trimmed.startsWith("//")) {
-					rules.add(parseLine(lineNo, trimmed));
+					switch (trimmed) {
+						case KEY_HEAD	:
+							currentPart = Parts.HEAD;
+							break;
+						case KEY_BODY	:
+							currentPart = Parts.BODY;
+							break;
+						case KEY_TAIL	:
+							currentPart = Parts.TAIL;
+							break;
+						default :
+							if (trimmed.endsWith("\\")) {	// Continuation to the next line
+								sb.append(trimmed, 0, trimmed.length() - 1).append("\\n");
+							}
+							else {
+								if (!sb.isEmpty()) {		// Multiline string is finished
+									sb.append(trimmed);
+									trimmed = sb.toString();
+									sb.setLength(0);
+								}
+								switch (currentPart) {
+									case HEAD	:
+										before.append(trimmed).append(System.lineSeparator());
+										break;
+									case BODY	:
+										rules.add(parseLine(lineNo, trimmed, variables));
+										break;
+									case TAIL	:
+										after.append(trimmed).append(System.lineSeparator());
+										break;
+									default:
+										throw new UnsupportedOperationException("Part type ["+currentPart+"] is not supported yet"); 
+								}
+							}
+							break;
+					}
+					
 				}
 				lineNo++;
 			}
@@ -120,13 +192,13 @@ public class Application {
 		for(Entry<String, List<Template>> item : groups.entrySet()) {
 			result.add(new Rule(item.getValue().get(0).filePattern, item.getValue().toArray(new Template[item.getValue().size()])));
 		}
-		return result.toArray(new Rule[result.size()]);
+		return new RuleSet(before.toString(), result.toArray(new Rule[result.size()]), after.toString());
 	}
 
 	// <file path template>:<xml path template> -> <format>
 	// ${name} can be used inside any part
 	// xml path can contains /name[@item=${name},...] and can terminate with ${name}
-	private static Template parseLine(final int lineNo, final String line) throws SyntaxException {
+	private static Template parseLine(final int lineNo, final String line, final Map<String,char[]> variables) throws SyntaxException {
 		final int	colonIndex = line.indexOf(':'), seqIndex = line.indexOf("->");
 		
 		if (colonIndex < 0) {
@@ -136,8 +208,8 @@ public class Application {
 			throw new SyntaxException(lineNo, 0, "Missing '->' in the rule"); 
 		}
 		else {
-			final String		pathTemplate = line.substring(0, colonIndex); 
-			final String		xmlTemplate = line.substring(colonIndex + 1, seqIndex); 
+			final String		pathTemplate = line.substring(0, colonIndex).trim(); 
+			final String		xmlTemplate = line.substring(colonIndex + 1, seqIndex).trim(); 
 			final String		format = line.substring(seqIndex + 2).trim().replace("\\n", System.lineSeparator());
 			final Map<String, Integer>	names = new HashMap<>();			
 			int					varNumber = 0;
@@ -238,16 +310,23 @@ public class Application {
 				final String	text = format.substring(from, m.start());
 				final char[]	charText = text.toCharArray();
 				
+				supp.add((s)->charText);
 				if (!names.containsKey(name)) {
-					throw new SyntaxException(lineNo, 0, "Unknown substitution ${"+name+"} in the format"); 
+					if (variables.containsKey(name)) {
+						final char[]	varValue = variables.get(name);
+						
+						supp.add((s)->varValue);
+					}
+					else {
+						throw new SyntaxException(lineNo, 0, "Unknown substitution ${"+name+"} in the format"); 
+					}
 				}
 				else {
 					final int	varIndex = names.get(name);
 					
-					supp.add((s)->charText);
 					supp.add((s)->s[varIndex]);
-					from = m.end();
 				}
+				from = m.end();
 			}
 			final char[]		tail = (format.substring(from)+System.lineSeparator()).toCharArray();
 			
@@ -289,12 +368,14 @@ public class Application {
 		return result;
 	}
 
-	private static int uploadModel(final File root, final Rule[] rules, final OutputStream os, final boolean debug) throws IOException {
+	private static int uploadModel(final File root, final RuleSet rules, final OutputStream os, final boolean debug) throws IOException {
 		final int	count;
 		
 		try(final Writer	wr = new OutputStreamWriter(os, PureLibSettings.DEFAULT_CONTENT_ENCODING)) {
 			
-			count = uploadModel(root, "", rules, wr, debug);			
+			wr.write(rules.before.replace("\\n", "\n"));
+			count = uploadModel(root, "", rules.rules, wr, debug);			
+			wr.write(rules.after.replace("\\n", "\n"));
 			wr.flush();
 			return count;
 		}
@@ -391,6 +472,18 @@ public class Application {
 		public Rule(final Pattern filePattern, final Template... templates) {
 			this.filePattern = filePattern;
 			this.templates = templates;
+		}
+	}
+
+	private static class RuleSet {
+		private final String	before;
+		private final Rule[]	rules;
+		private final String	after;
+		
+		public RuleSet(String before, Rule[] rules, String after) {
+			this.before = before;
+			this.rules = rules;
+			this.after = after;
 		}
 	}
 	

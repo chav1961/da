@@ -1,3 +1,11 @@
 // шаблон пути файла: шаблон пути XML -> выходной шаблон
-/ads/${module}/locale/*/*.xml:AdsDefinition/AdsLocalizingBundleDefinition/String[@Id=${id}]/Value[@Language=${lang}]/${content}-><http://zzz/${module}/mls/${id}> <http://content> "${content}"@${lang}.
-/dds/${module}/locale/*.xml:AdsDefinition/AdsLocalizingBundleDefinition/String[@Id=${id}]/Value[@Language=${lang}]/${content}-><http://zzz/${module}/mls/${id}> <http://content> "${content}"@${lang}.
+@head
+# writter \
+# assa  
+@body
+/ads/${module}/locale/*/*.xml : AdsDefinition/AdsLocalizingBundleDefinition/String[@Id=${id}]/Value[@Language=${lang}]/${content} -> \ 
+	<http://radixware.org/${id}> <http://radixware.org/TextContent> "${content}"@${lang}. \
+	<http://radixware.org/${id}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://radixware.org/MultiLangString>.
+/dds/${module}/locale/*.xml	  : AdsDefinition/AdsLocalizingBundleDefinition/String[@Id=${id}]/Value[@Language=${lang}]/${content} -> \
+	<http://radixware.org/${id}> <http://radixware.org/TextContent> "${content}"@${lang}. \
+	<http://radixware.org/${id}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://radixware.org/MultiLangString>.
