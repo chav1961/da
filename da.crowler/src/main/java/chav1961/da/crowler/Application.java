@@ -38,7 +38,7 @@ import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 
 public class Application {
-	public static final String		ARG_SOURCE_DIR = "sd";
+	public static final String		ARG_SOURCE_DIR = "sourceDir";
 	public static final String		ARG_RULES_FILE = "r";
 	public static final String		ARG_OUTPUT_FILE = "o";
 	public static final String		ARG_DEBUG = "d";
@@ -78,15 +78,30 @@ public class Application {
 		final Map<String,char[]>	variables = new HashMap<>();
 		
 		try{final ArgParser		parser = parserTemplate.parse(args);
+			final File			sourceDir = parser.getValue(ARG_SOURCE_DIR, File.class);
+			final boolean		debug = parser.getValue(ARG_DEBUG, boolean.class);
 			final RuleSet		rules;
 
 			fillVariables(variables);
+			if (!sourceDir.exists()) {
+				throw new CommandLineParametersException("Source directory ["+sourceDir.getPath()+"] is not exists"); 
+			}
+			
 			if (parser.isTyped(ARG_RULES_FILE)) {
-				try(final InputStream	is = new FileInputStream(parser.getValue(ARG_RULES_FILE, File.class))) {
-					rules = loadRules(is, variables);
+				final File	f = parser.getValue(ARG_RULES_FILE, File.class);
+				
+				if (!f.exists()) {
+					throw new CommandLineParametersException("Rules file ["+f.getPath()+"] is not exists"); 
+				}
+				else {
+					System.err.println("Loading rules from ["+f.getAbsolutePath()+"]...");
+					try(final InputStream	is = new FileInputStream(f)) {
+						rules = loadRules(is, variables);
+					}
 				}
 			}
 			else {
+				System.err.println("Loading rules from standard input...");
 				rules = loadRules(System.in, variables);
 			}
 			
@@ -94,21 +109,24 @@ public class Application {
 			final int	count;
 			
 			if (parser.isTyped(ARG_OUTPUT_FILE)) {
-				try(final OutputStream	os = new FileOutputStream(parser.getValue(ARG_OUTPUT_FILE, File.class))) {
-					count = uploadModel(parser.getValue(ARG_SOURCE_DIR, File.class), rules, os, parser.getValue(ARG_DEBUG, boolean.class));
+				final File	out = parser.getValue(ARG_OUTPUT_FILE, File.class);
+				
+				try(final OutputStream	os = new FileOutputStream(out)) {
+					System.err.println("Uploading model to ["+out.getAbsolutePath()+"]...");
+					count = uploadModel(sourceDir, rules, os, debug);
 				}
 			}
 			else {
-				count = uploadModel(parser.getValue(ARG_SOURCE_DIR, File.class), rules, System.out, parser.getValue(ARG_DEBUG, boolean.class));
+				System.err.println("Uploading model to standard output...");
+				count = uploadModel(sourceDir, rules, System.out, debug);
 			}
-			
-			System.err.println("Total files processed: "+count+", duration="+(System.currentTimeMillis()-startTime)+"msec");
+			System.err.println("Uploading completed, total files processed: "+count+", duration = "+(System.currentTimeMillis()-startTime)+" msec");
 		} catch (IOException | SyntaxException e) {
 			e.printStackTrace();
 			System.exit(129);
 		} catch (CommandLineParametersException e) {
 			System.err.println(e.getLocalizedMessage());
-			System.err.println(parserTemplate.getUsage("crowl"));
+			System.err.println(parserTemplate.getUsage("crowler"));
 			System.exit(128);
 		}
 	}
@@ -622,9 +640,9 @@ public class Application {
 
 	private static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
-			new FileArg(ARG_SOURCE_DIR, true, "Source directory to crowl model. Default is current directory", "./"),
-			new FileArg(ARG_RULES_FILE, false, "Rules file location. You can use 'crowl ... <rules.txt' instead of this parameters", "./rules.txt"),
-			new FileArg(ARG_OUTPUT_FILE, false, false, "Output file location. You can use 'crowl ... >output.txt' instead of this parameters"),
+			new FileArg(ARG_SOURCE_DIR, ArgParser.FileType.DIRECTORY_ONLY, true, true, "Source directory to crowl model(s)"),
+			new FileArg(ARG_RULES_FILE, ArgParser.FileType.FILE_ONLY, false, false, "Rules file location. If missing, standard application input will be used"),
+			new FileArg(ARG_OUTPUT_FILE, ArgParser.FileType.FILE_ONLY, false, false, "Output file location. If missing, stardard application output will be used"),
 			new BooleanArg(ARG_DEBUG, false, "Turn on debug trace", false),
 		};
 		
