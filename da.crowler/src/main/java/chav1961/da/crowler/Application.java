@@ -584,7 +584,7 @@ public class Application {
 			    			rule.substitutions[rule.substitutions.length-1] = NULL_ARRAY;
 			    		}
 			    		else {
-				    		rule.substitutions[rule.substitutions.length-1] = escapeString(rule.substitutions[rule.substitutions.length-1]);
+				    		rule.substitutions[rule.substitutions.length-1] = escapeCharContent(rule.substitutions[rule.substitutions.length-1]);
 			    		}
 			    	}		    		
 		    		
@@ -609,7 +609,7 @@ public class Application {
 	    	return result;
 		}
 
-		private char[] escapeString(final char[] source) {
+		private char[] escapeCharContent(final char[] source) {
 			for(char item : source) {
 				if (item == '\n') {
 					return new String(source).trim().replace("\n", "\\n").toCharArray();
