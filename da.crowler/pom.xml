@@ -63,7 +63,7 @@
                        <manifest>
                            <addClasspath>true</addClasspath>
                            <classpathPrefix>./</classpathPrefix>
-                            <mainClass>chav1961.calc.Application</mainClass>
+                            <mainClass>chav1961.da.crowler.Application</mainClass>
                        </manifest>
                    </archive>
                </configuration>

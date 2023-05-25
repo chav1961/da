@@ -13,11 +13,13 @@ import java.io.Reader;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -100,15 +102,13 @@ public class Application {
 				count = uploadModel(parser.getValue(ARG_SOURCE_DIR, File.class), rules, System.out, parser.getValue(ARG_DEBUG, boolean.class));
 			}
 			
-			if (parser.getValue(ARG_DEBUG, boolean.class)) {
-				System.err.println("Total files processed: "+count+", duration="+(System.currentTimeMillis()-startTime)+"msec");
-			}
+			System.err.println("Total files processed: "+count+", duration="+(System.currentTimeMillis()-startTime)+"msec");
 		} catch (IOException | SyntaxException e) {
 			e.printStackTrace();
 			System.exit(129);
 		} catch (CommandLineParametersException e) {
 			System.err.println(e.getLocalizedMessage());
-			System.err.println(parserTemplate.getUsage("crowler"));
+			System.err.println(parserTemplate.getUsage("crowl"));
 			System.exit(128);
 		}
 	}
@@ -120,6 +120,7 @@ public class Application {
 		for( Entry<Object, Object> item : System.getProperties().entrySet()) {
 			variables.put(item.getKey().toString(), item.getValue().toString().toCharArray());
 		}
+		variables.put("timestamp", new Date(System.currentTimeMillis()).toString().toCharArray());
 	}
 
 	private static RuleSet loadRules(final InputStream in, final Map<String,char[]> variables) throws IOException, SyntaxException {
@@ -137,7 +138,7 @@ public class Application {
 				String	trimmed = line.trim();
 				
 				if (!trimmed.isEmpty() && !trimmed.startsWith("//")) {
-					switch (trimmed) {
+					switch (trimmed.toLowerCase()) {
 						case KEY_HEAD	:
 							currentPart = Parts.HEAD;
 							break;
@@ -192,7 +193,13 @@ public class Application {
 		for(Entry<String, List<Template>> item : groups.entrySet()) {
 			result.add(new Rule(item.getValue().get(0).filePattern, item.getValue().toArray(new Template[item.getValue().size()])));
 		}
-		return new RuleSet(before.toString(), result.toArray(new Rule[result.size()]), after.toString());
+		return new RuleSet(parseSection(escapeString(before.toString()), variables), 
+						result.toArray(new Rule[result.size()]), 
+						parseSection(escapeString(after.toString()), variables));
+	}
+
+	private static String escapeString(final String source) {
+		return source.replace("\\n", "\n");
 	}
 
 	// <file path template>:<xml path template> -> <format>
@@ -352,6 +359,33 @@ public class Application {
 		}
 	}
 
+	private static Supplier<char[]>[] parseSection(final String section, final Map<String,char[]> variables) throws SyntaxException {
+		final List<Supplier<char[]>>	supp = new ArrayList<>();
+		final Matcher					m = SUBST.matcher(section);
+		int		from = 0;
+		
+		while (m.find()) {
+			final String	name = m.group(1);
+			final String	text = section.substring(from, m.start());
+			final char[]	charText = text.toCharArray();
+			
+			supp.add(()->charText);
+			if (variables.containsKey(name)) {
+				final char[]	varValue = variables.get(name);
+				
+				supp.add(()->varValue);
+			}
+			else {
+				throw new SyntaxException(0, 0, "Unknown substitution ${"+name+"} in the format"); 
+			}
+			from = m.end();
+		}
+		final char[]		tail = (section.substring(from)+System.lineSeparator()).toCharArray();
+		
+		supp.add(()->tail);
+		return supp.toArray(new Supplier[supp.size()]);
+	}
+	
 	private static boolean extractAttrs(final Attributes attrs, final Map<String, Integer> pairs, final Template template) {
 		boolean	result = true;
 		
@@ -373,10 +407,13 @@ public class Application {
 		
 		try(final Writer	wr = new OutputStreamWriter(os, PureLibSettings.DEFAULT_CONTENT_ENCODING)) {
 			
-			wr.write(rules.before.replace("\\n", "\n"));
+			for (Supplier<char[]> item : rules.before) {
+				wr.write(item.get());
+			}
 			count = uploadModel(root, "", rules.rules, wr, debug);			
-			wr.write(rules.after.replace("\\n", "\n"));
-			wr.flush();
+			for (Supplier<char[]> item : rules.after) {
+				wr.write(item.get());
+			}
 			return count;
 		}
 	}
@@ -399,7 +436,7 @@ public class Application {
 				for (Rule item : rules) {
 					if (item.filePattern.matcher(path).matches()) {
 						if (debug) {
-							System.err.println("Processing "+path+" ...");
+							System.err.println("Processing "+path+" ... ");
 						}
 						uploadModel(current, item, path, wr);
 						count++;
@@ -434,19 +471,6 @@ public class Application {
 		}
 	}
 
-	private static class ApplicationArgParser extends ArgParser {
-		private static final ArgParser.AbstractArg[]	KEYS = {
-			new FileArg(ARG_SOURCE_DIR, true, "Source directory to crowl model", "./"),
-			new FileArg(ARG_RULES_FILE, false, "Rules file location", "./rules.txt"),
-			new FileArg(ARG_OUTPUT_FILE, false, false, "Output file location"),
-			new BooleanArg(ARG_DEBUG, false, "Turn on debug trace", false),
-		};
-		
-		ApplicationArgParser() {
-			super(KEYS);
-		}
-	}
-
 	private static class Template {
 		final Pattern						filePattern;
 		final int							extractPattern;
@@ -476,11 +500,11 @@ public class Application {
 	}
 
 	private static class RuleSet {
-		private final String	before;
-		private final Rule[]	rules;
-		private final String	after;
+		private final Supplier<char[]>[]	before;
+		private final Rule[]				rules;
+		private final Supplier<char[]>[]	after;
 		
-		public RuleSet(String before, Rule[] rules, String after) {
+		public RuleSet(final Supplier<char[]>[] before, final Rule[] rules, final Supplier<char[]>[] after) {
 			this.before = before;
 			this.rules = rules;
 			this.after = after;
@@ -488,17 +512,28 @@ public class Application {
 	}
 	
 	private static class CrowlingHandler extends DefaultHandler {
+		private static final long[]		MASKS = new long[64];
+		private static final long[]		BITS = new long[64];
+		
+		static {
+			long	mask = 1;
+			long	bit = 1;
+			
+			for(int index = 0; index < 64; index++, mask = (mask << 1) | 1, bit <<= 1) {
+				MASKS[index] = mask;
+				BITS[index] = bit;
+			}
+		}
+		
 		private final Template[]		rules;
 		private final Writer			wr;
-		private final List<Boolean>[]	matches;
+		private final long[]			matches;
+		private int						depth = -1;
 		
 		public CrowlingHandler(final Template[] rules, final Writer wr) {
 			this.rules = rules;
 			this.wr = wr;
-			this.matches = new List[rules.length];
-			for(int index = 0; index < rules.length; index++) {
-				this.matches[index] = new ArrayList<>(16);
-			}
+			this.matches = new long[rules.length];
 		}
 		
 	    @Override
@@ -517,14 +552,20 @@ public class Application {
 
 		@Override
 	    public void startElement(String uri, String lName, String qName, Attributes attr) throws SAXException {
+			depth++;
 			for (int index = 0; index < rules.length; index++) {
 				final Template	rule = rules[index];
 				
-		    	if (matches[index].size() < rule.pathPattern.length) {
-			    	matches[index].add(rule.pathPattern[matches[index].size()].test(qName, attr, rule));
+		    	if (depth < rule.pathPattern.length) {
+		    		if (rule.pathPattern[depth].test(qName, attr, rule)) {
+			    		matches[index] |= BITS[depth];
+		    		}
+		    		else {
+			    		matches[index] &= ~BITS[depth];
+		    		}
 		    	}
 		    	else {
-		    		matches[index].add(false);
+		    		matches[index] &= ~BITS[depth];
 		    	}
 		    	if (rule.hasContent) {
 		    		rule.substitutions[rule.substitutions.length-1] = null;
@@ -537,7 +578,7 @@ public class Application {
 			for (int index = 0; index < rules.length; index++) {
 				final Template	rule = rules[index];
 		    	
-		    	if (matches[index].size() == rule.pathPattern.length && allTrue(matches[index])) {
+		    	if (depth == rule.pathPattern.length - 1 && (matches[index] & MASKS[depth]) == MASKS[depth]) {
 			    	if (rule.hasContent) {
 			    		if (rule.substitutions[rule.substitutions.length-1] == null) {
 			    			rule.substitutions[rule.substitutions.length-1] = NULL_ARRAY;
@@ -555,8 +596,9 @@ public class Application {
 						throw new SAXException(e);
 					}
 		    	}
-		    	matches[index].remove(matches[index].size()-1);
+	    		matches[index] &= ~BITS[depth];
 			}
+			depth--;
 	    }
 
 	    private char[] append(final char[] source, final char[] append, int start, int length) {
@@ -576,14 +618,18 @@ public class Application {
 			return source;
 			
 		}
-
-		private boolean allTrue(final List<Boolean> list) {
-			for(boolean item : list) {
-				if (!item) {
-					return false;
-				}
-			}
-			return true;
-		}
 	}	
+
+	private static class ApplicationArgParser extends ArgParser {
+		private static final ArgParser.AbstractArg[]	KEYS = {
+			new FileArg(ARG_SOURCE_DIR, true, "Source directory to crowl model. Default is current directory", "./"),
+			new FileArg(ARG_RULES_FILE, false, "Rules file location. You can use 'crowl ... <rules.txt' instead of this parameters", "./rules.txt"),
+			new FileArg(ARG_OUTPUT_FILE, false, false, "Output file location. You can use 'crowl ... >output.txt' instead of this parameters"),
+			new BooleanArg(ARG_DEBUG, false, "Turn on debug trace", false),
+		};
+		
+		ApplicationArgParser() {
+			super(KEYS);
+		}
+	}
 }
