@@ -238,15 +238,30 @@ public class Application {
 			}
 			groups.get(item.filePattern.pattern()).add(item);
 		}
+		final Map<String, Object>	filePatternTree = new HashMap<>();	// Pseudo-tree for directory scan
 		
-		final List<Rule>	result = new ArrayList<>();
-		
-		for(Entry<String, List<Template>> item : groups.entrySet()) {
-			result.add(new Rule(item.getValue().get(0).filePattern, item.getValue().toArray(new Template[item.getValue().size()])));
+		for (Entry<String, List<Template>> item : groups.entrySet()) {	// Build pseudo-tree to optimize directory scan
+			appendPath(filePatternTree, item.getKey().split("/"), 1/* skip first '/' in the pattern*/, item.getValue().toArray(new Template[item.getValue().size()]));
 		}
+		
 		return new RuleSet(parseSection(escapeString(before.toString()), variables), 
-						result.toArray(new Rule[result.size()]), 
-						parseSection(escapeString(after.toString()), variables));
+						parseSection(escapeString(after.toString()), variables),
+						filePatternTree);
+	}
+
+	private static void appendPath(final Map<String, Object> tree, final String[] content, final int current, final Template[] templates) {
+		if (current < content.length) {
+			if (!tree.containsKey(content[current])) {
+				tree.put(content[current], new HashMap<String, Object>());
+			}
+			appendPath((Map<String, Object>)tree.get(content[current]), content, current+1, templates);
+		}
+		else {
+			if (!tree.containsKey("/")) {	// Terminal node of the tree - Rule list will be here
+				tree.put("/", new ArrayList<Rule>());
+			}
+			((List<Rule>)tree.get("/")).add(new Rule(templates[0].filePattern, templates));
+		}
 	}
 
 	private static String escapeString(final String source) {
@@ -464,7 +479,7 @@ public class Application {
 			for (Supplier<char[]> item : rules.before) {
 				wr.write(item.get());
 			}
-			count = uploadModel(root, "", rules.rules, wr, debug);			
+			count = uploadModel(root, "", rules.rulesTree, wr, debug);			
 			for (Supplier<char[]> item : rules.after) {
 				wr.write(item.get());
 			}
@@ -472,22 +487,31 @@ public class Application {
 		}
 	}
 
-	private static int uploadModel(final File root, final String path, Rule[] rules, final Writer wr, final boolean debug) throws IOException {
+	private static int uploadModel(final File root, final String path, final Map<String,Object> rules, final Writer wr, final boolean debug) throws IOException {
 		final File	current = new File(root, path);
 		int count = 0;
 		
 		if (current.exists() && current.canRead()) {
 			if (current.isDirectory()) {
-				final String[]	content = current.list();
-				
-				if (content != null) {
-					for(String item : content) {
-						count += uploadModel(root, path+"/"+item, rules, wr, debug);
+				for (Entry<String, Object> item : rules.entrySet()) {
+					if (isPattern(item.getKey())) {
+						final Pattern	p = Pattern.compile(item.getKey());
+						
+						final String[]	content = current.list((dir,name)->p.matcher(name).matches());
+						
+						if (content != null) {
+							for(String name : content) {
+								count += uploadModel(root, path+"/"+name, (Map<String,Object>)item.getValue(), wr, debug);
+							}
+						}
+					}
+					else {
+						count += uploadModel(root, path+"/"+item.getKey(), (Map<String,Object>)item.getValue(), wr, debug);
 					}
 				}
 			}
-			else {
-				for (Rule item : rules) {
+			else if (rules.containsKey("/")) {
+				for (Rule item : (List<Rule>)rules.get("/")) {
 					if (item.filePattern.matcher(path).matches()) {
 						if (debug) {
 							System.err.println("Processing "+path+" ... ");
@@ -499,6 +523,10 @@ public class Application {
 			}
 		}
 		return count;
+	}
+	
+	private static boolean isPattern(final String key) {
+		return key.indexOf('+') >= 0;
 	}
 
 	private static void uploadModel(final File file, final Rule rule, final String path, final Writer wr) throws IOException {
@@ -555,13 +583,13 @@ public class Application {
 
 	private static class RuleSet {
 		private final Supplier<char[]>[]	before;
-		private final Rule[]				rules;
+		private final Map<String,Object>	rulesTree;
 		private final Supplier<char[]>[]	after;
 		
-		public RuleSet(final Supplier<char[]>[] before, final Rule[] rules, final Supplier<char[]>[] after) {
+		public RuleSet(final Supplier<char[]>[] before, final Supplier<char[]>[] after, final Map<String,Object> rulesTree) {
 			this.before = before;
-			this.rules = rules;
 			this.after = after;
+			this.rulesTree = rulesTree;
 		}
 	}
 	
