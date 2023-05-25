@@ -37,6 +37,39 @@ import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 
+/**
+ *	Rules file must have format:
+ *
+ *  file = (head){0,1} (body){1,1} (tail){0,1}
+ *  head = '@head\n' (subst)*  
+ *  body = '@body\n' (rule)+  
+ *  tail = '@tail\n' (subst)*
+ *  subst = (substline)*
+ *  substLine = (empty | comment | format)
+ *  empty = space* \n    
+ *  comment = '//' (any text) '\n'
+ *  format = (text | variable| '\\n') *
+ *  text = (any text)
+ *  variable = '${' varName '}'
+ *  rule = filePattern ':' xmlPattern '->' format
+ *  filePattern = patternItem ('/'patternItem)*
+ *  patternItem = variable | wildcardName
+ *  xmlPattern = xmlPatternItem ('/'xmlPatternItem)* ('/'variable){0,1}
+ *  xmlPatternItem = tagname ('[' attrlist ']'){0,1}
+ *  tagname = varname
+ *  attrList = attr (','attr)*
+ *  attr='@'attrName'='variable
+ *  attrName = varName 
+ *  
+ *  Available variable names in the @head and @tail are:
+ *  - OS environment variables
+ *  - -Dkey=value pairs from java command string
+ *  - predefined ${timestamp} variable, containing application start time in the date/time format
+ *  
+ *  Variables in file patterns and xml patterns can contain it's own variable names. This names must be unique in the
+ *  scope of current rule. If name in any part of rule points to any known variable, variable content will be substituted
+ *  instead.
+ */
 public class Application {
 	public static final String		ARG_SOURCE_DIR = "sourceDir";
 	public static final String		ARG_RULES_FILE = "r";
@@ -252,6 +285,9 @@ public class Application {
 					sbPT.append("/.+");
 					if (names.containsKey(name)) {
 						throw new SyntaxException(lineNo, 0, "Duplicate substitution name ["+name+"] in the file path template"); 
+					}
+					else if (variables.containsKey(name)) {	// Substitute variable name content instead of variable 
+						sbPT.append('/').append(variables.get(name));
 					}
 					else {
 						names.put(name, varNumber++);
