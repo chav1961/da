@@ -201,14 +201,14 @@ public class Application {
 							break;
 						default :
 							if (trimmed.endsWith("\\")) {	// Continuation to the next line
-								sb.append(trimmed, 0, trimmed.length() - 1).append("\\n");
+								sb.append(trimmed, 0, trimmed.length() - 1).append(' ');
 							}
 							else {
 								if (!sb.isEmpty()) {		// Multiline string is finished
 									sb.append(trimmed);
-									trimmed = sb.toString();
-									sb.setLength(0);
 								}
+								trimmed = sb.toString();
+								sb.setLength(0);
 								switch (currentPart) {
 									case HEAD	:
 										before.append(trimmed).append(System.lineSeparator());
@@ -280,10 +280,14 @@ public class Application {
 		else if (seqIndex < 0) {
 			throw new SyntaxException(lineNo, 0, "Missing '->' in the rule"); 
 		}
+		else if (seqIndex < colonIndex) {
+			throw new SyntaxException(lineNo, 0, "Sequence '->' before ':' in the rule"); 
+		}
 		else {
 			final String		pathTemplate = line.substring(0, colonIndex).trim(); 
 			final String		xmlTemplate = line.substring(colonIndex + 1, seqIndex).trim(); 
 			final String		format = line.substring(seqIndex + 2).trim().replace("\\n", System.lineSeparator());
+			final String		prefix = ">>> "+line+'\n';
 			final Map<String, Integer>	names = new HashMap<>();			
 			int					varNumber = 0;
 			
@@ -299,7 +303,7 @@ public class Application {
 					
 					sbPT.append("/.+");
 					if (names.containsKey(name)) {
-						throw new SyntaxException(lineNo, 0, "Duplicate substitution name ["+name+"] in the file path template"); 
+						throw new SyntaxException(lineNo, 0, prefix+"Duplicate substitution name ["+name+"] in the file path template"); 
 					}
 					else if (variables.containsKey(name)) {	// Substitute variable name content instead of variable 
 						sbPT.append('/').append(variables.get(name));
@@ -338,20 +342,20 @@ public class Application {
 							final String	attrName = m1.group(1);
 							
 							if (names.containsKey(substName)) {
-								throw new SyntaxException(lineNo, 0, "Duplicate substitution name ["+substName+"] in the tag ["+m.group(1)+"] from the XML path");
+								throw new SyntaxException(lineNo, 0, prefix+"Duplicate substitution name ["+substName+"] in the tag ["+m.group(1)+"] from the XML path");
 							}
 							else {
 								names.put(substName, varNumber++);
 							}
 							if (attrNames.containsKey(attrName)) {
-								throw new SyntaxException(lineNo, 0, "Duplicate attribute reference ["+attrName+"] for tag ["+m.group(1)+"] in the XML path");
+								throw new SyntaxException(lineNo, 0, prefix+"Duplicate attribute reference ["+attrName+"] for tag ["+m.group(1)+"] in the XML path");
 							}
 							else {
 								attrNames.put(attrName, names.get(substName));
 							}
 						}
 						else {
-							throw new SyntaxException(lineNo, 0, "Illegal attribute descriptor for tag ["+m.group(1)+"] in the XML path");
+							throw new SyntaxException(lineNo, 0, prefix+"Illegal attribute descriptor for tag ["+m.group(1)+"] in the XML path");
 						}
 					}
 					tags.add(m.group(1));
@@ -366,7 +370,7 @@ public class Application {
 							textNodePresents = true;
 						}
 						else {
-							throw new SyntaxException(lineNo, 0, "Substitution ${"+m1.group(1)+"} in the XML path can't be more than once"); 
+							throw new SyntaxException(lineNo, 0, prefix+"Substitution ${"+m1.group(1)+"} in the XML path can't be more than once"); 
 						}
 					}
 					else {
@@ -394,7 +398,7 @@ public class Application {
 						supp.add((s)->varValue);
 					}
 					else {
-						throw new SyntaxException(lineNo, 0, "Unknown substitution ${"+name+"} in the format"); 
+						throw new SyntaxException(lineNo, 0, prefix+"Unknown substitution ${"+name+"} in the format"); 
 					}
 				}
 				else {
