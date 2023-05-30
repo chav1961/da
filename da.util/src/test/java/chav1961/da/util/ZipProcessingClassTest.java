@@ -38,14 +38,14 @@ public class ZipProcessingClassTest {
 		
 		Assert.assertFalse(ZipProcessingClass.checkZipParameters(parser.parse()));
 		Assert.assertTrue(ZipProcessingClass.checkZipParameters(parser.parse("-"+Constants.ARG_ZIP)));
-		Assert.assertTrue(ZipProcessingClass.checkZipParameters(parser.parse("-"+Constants.ARG_ZIP,"-"+Constants.ARG_PROCESS,".*","-"+Constants.ARG_EXCLUDE,".*")));
+		Assert.assertTrue(ZipProcessingClass.checkZipParameters(parser.parse("-"+Constants.ARG_ZIP,"-"+Constants.ARG_PROCESS,".*","-"+Constants.ARG_PASS,".*")));
 
 		try{ZipProcessingClass.checkZipParameters(null);
 			Assert.fail("Mandatory exception was not detected (null1-st argument)");
 		} catch (NullPointerException exc) {
 		}
 		
-		try{ZipProcessingClass.checkZipParameters(parser.parse("-"+Constants.ARG_EXCLUDE,".*"));
+		try{ZipProcessingClass.checkZipParameters(parser.parse("-"+Constants.ARG_PASS,".*"));
 			Assert.fail("Mandatory exception was not detected (-exclude without -zip)");
 		} catch (CommandLineParametersException exc) {
 		}
@@ -371,7 +371,7 @@ public class ZipProcessingClassTest {
 	private static class TestArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
 			new BooleanArg(Constants.ARG_ZIP, false, "Parse input as *.zip format", false),
-			new PatternArg(Constants.ARG_EXCLUDE, false, "Skip input *.zip parts and remove then from output stream", "\uFFFF"),
+			new PatternArg(Constants.ARG_PASS, false, "Skip input *.zip parts and remove then from output stream", "\uFFFF"),
 			new PatternArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. If missing,all the parts will be processed", ".*"),
 		};
 		

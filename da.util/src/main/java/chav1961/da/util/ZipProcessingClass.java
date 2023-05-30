@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
@@ -28,6 +29,8 @@ import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.SystemErrLoggerFacade;
+import chav1961.purelib.basic.TemporaryStore;
+import chav1961.purelib.basic.TemporaryStore.InputOutputPair;
 import chav1961.purelib.basic.URIUtils;
 import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
@@ -36,6 +39,18 @@ import chav1961.purelib.basic.interfaces.LoggerFacade;
 import chav1961.purelib.enumerations.ContinueMode;
 import chav1961.purelib.fsys.interfaces.FileSystemInterface;
 
+/**
+ * <p>This class supports basic ZIP processing. ZIP processing is controlled by several command line parameters:</p>
+ * <ul>
+ * <li>{@value Constants#ARG_PROCESS} - zip entry name pattern to process.</li>  
+ * <li>{@value Constants#ARG_PASS} - zip entry name pattern to pass it to output "as-is". Mutually exclusive with {@value Constants#ARG_PROCESS} option</li>  
+ * <li>{@value Constants#ARG_REMOVE} - zip entry name pattern to remove zip entry from the output.</li>  
+ * <li>{@value Constants#ARG_RENAME} - zip entry name 'pattern->pattern' to rename for entry in the output</li>  
+ * </ul>
+ * <p>The first two options are processed before zip entry processing, the last two options are processed after zip entry proccessing 
+ * @author Alexander Chernomyrdin aka chav1961
+ * @since 0.0.1
+ */
 public class ZipProcessingClass {
 	public static final EntityProcessor	COPY_PROCESSOR = (reader, writer, partName, format, logger, debug) -> Utils.copyStream(reader, writer);
 	public static final Pattern			ALL_PATTERN = Pattern.compile(".*"); 
@@ -46,20 +61,20 @@ public class ZipProcessingClass {
 			throw new NullPointerException("Parse can't be null"); 
 		}
 		else if (!parser.getValue(Constants.ARG_ZIP, boolean.class)) {
-			if (parser.isTyped(Constants.ARG_EXCLUDE)) {
-				throw new CommandLineParametersException("Argument ["+Constants.ARG_EXCLUDE+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
-			}
-			else if (parser.isTyped(Constants.ARG_PROCESS)) {
+			if (parser.isTyped(Constants.ARG_PROCESS)) {
 				throw new CommandLineParametersException("Argument ["+Constants.ARG_PROCESS+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
+			}
+			else if (parser.isTyped(Constants.ARG_PASS)) {
+				throw new CommandLineParametersException("Argument ["+Constants.ARG_PASS+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
 			}
 			else if (parser.isTyped(Constants.ARG_RENAME)) {
 				throw new CommandLineParametersException("Argument ["+Constants.ARG_RENAME+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
 			}
-			else if (parser.isTyped(Constants.ARG_SKIP)) {
-				throw new CommandLineParametersException("Argument ["+Constants.ARG_SKIP+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
-			}
 			else if (parser.isTyped(Constants.ARG_REMOVE)) {
 				throw new CommandLineParametersException("Argument ["+Constants.ARG_REMOVE+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
+			}
+			if (parser.isTyped(Constants.ARG_PROCESS) && parser.isTyped(Constants.ARG_PASS)) {
+				throw new CommandLineParametersException("Mutually exclusize argument ["+Constants.ARG_PROCESS+"] and ["+Constants.ARG_PASS+"]");  
 			}
 			else {
 				return false;
@@ -70,7 +85,7 @@ public class ZipProcessingClass {
 		}
 	}
 
-	public static InputStream createZipTemplate(final Properties props, final URI... content) throws IOException, NullPointerException {
+	public static InputOutputPair createZipTemplate(final TemporaryStore ts, final Properties props, final URI... content) throws IOException, NullPointerException {
 		if (props == null) {
 			throw new NullPointerException("Properties can't be null");
 		}
@@ -78,13 +93,15 @@ public class ZipProcessingClass {
 			throw new NullPointerException("Properties is null or contain nulls inside");
 		}
 		else {
-			try(final ByteArrayOutputStream	baos = new ByteArrayOutputStream()) {
-				try(final ZipOutputStream	zos = new ZipOutputStream(baos)) {
+			final InputOutputPair pair = ts.allocate();
+			
+			try(final OutputStream	os = pair.getOutputStream()) {
+				try(final ZipOutputStream	zos = new ZipOutputStream(os)) {
 					ZipEntry	ze = new ZipEntry(Constants.PART_TICKET);
 					
 					ze.setMethod(ZipEntry.DEFLATED);
 					zos.putNextEntry(ze);
-					props.store(zos, "Created="+new Date(System.currentTimeMillis()));
+					props.store(zos, "Created "+new Date(System.currentTimeMillis()));
 					zos.closeEntry();
 
 					for (URI item : content) {
@@ -97,7 +114,7 @@ public class ZipProcessingClass {
 					zos.closeEntry();
 					
 					zos.finish();
-					return new ByteArrayInputStream(baos.toByteArray());
+					return pair;
 				} catch (ContentException e) {
 					throw new IOException(e.getLocalizedMessage(), e);
 				}
