@@ -55,6 +55,12 @@ public class ZipProcessingClass {
 			else if (parser.isTyped(Constants.ARG_RENAME)) {
 				throw new CommandLineParametersException("Argument ["+Constants.ARG_RENAME+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
 			}
+			else if (parser.isTyped(Constants.ARG_SKIP)) {
+				throw new CommandLineParametersException("Argument ["+Constants.ARG_SKIP+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
+			}
+			else if (parser.isTyped(Constants.ARG_REMOVE)) {
+				throw new CommandLineParametersException("Argument ["+Constants.ARG_REMOVE+"] must be used in conjunction with ["+Constants.ARG_ZIP+"] only");  
+			}
 			else {
 				return false;
 			}
@@ -78,7 +84,7 @@ public class ZipProcessingClass {
 					
 					ze.setMethod(ZipEntry.DEFLATED);
 					zos.putNextEntry(ze);
-					props.store(zos, "Created "+new Date(System.currentTimeMillis()));
+					props.store(zos, "Created="+new Date(System.currentTimeMillis()));
 					zos.closeEntry();
 
 					for (URI item : content) {
@@ -91,11 +97,10 @@ public class ZipProcessingClass {
 					zos.closeEntry();
 					
 					zos.finish();
+					return new ByteArrayInputStream(baos.toByteArray());
 				} catch (ContentException e) {
 					throw new IOException(e.getLocalizedMessage(), e);
 				}
-				
-				return new ByteArrayInputStream(baos.toByteArray());
 			}
 		}
 	}

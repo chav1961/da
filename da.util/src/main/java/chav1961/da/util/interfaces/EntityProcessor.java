@@ -16,7 +16,7 @@ public interface EntityProcessor extends RenamingInterface {
 		return props;
 	}
 	
-	default String renameEntry(String partName) {
+	default String renameEntry(final String partName) {
 		return partName;
 	}
 	

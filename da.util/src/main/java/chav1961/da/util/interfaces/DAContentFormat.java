@@ -2,9 +2,9 @@ package chav1961.da.util.interfaces;
 
 public enum DAContentFormat {
 	RDF_XML("application/rdf+xml", "xml", ""), 
-	TURTLE("text/turtle", "turtle", ""),
-	RDF_JSON("application/rdf+json", "json", ""),
-	N3("text/n3", "n3", ""),
+	TURTLE("text/turtle", "turtle", "ttf"),
+	RDF_JSON("application/rdf+json", "json", "json"),
+	N3("text/n3", "n3", "n3"),
 	N_TRIPLES("application/n-triples", "triples", "nt"),
 	N_QUADS("application/n-quads", "quads", ""),
 	TRIG("application/trig", "trig", "");

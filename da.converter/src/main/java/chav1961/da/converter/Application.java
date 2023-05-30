@@ -14,6 +14,9 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+
 import chav1961.da.converter.interfaces.InputConverterInterface;
 import chav1961.da.converter.interfaces.OutputConverterInterface;
 import chav1961.da.util.Constants;
@@ -78,7 +81,8 @@ public class Application {
 			final SyntaxTreeInterface<char[]>	tree = new AndOrTree<>(1,1);
 			final RenamingInterface	ri = parser.isTyped(Constants.ARG_RENAME) ? new RenamingClass(parser.getValue(Constants.ARG_RENAME, String.class)) : (s)->s;
 			final Convertor			conv = new Convertor(parser.getValue(ARG_OUTPUT_FORMAT, DAContentFormat.class), ri, ici, oci);
-
+			final Model 			model = ModelFactory.createDefaultModel();			
+			
 			ZipProcessingClass.parseZip(zis, zos, parser.getValue(Constants.ARG_EXCLUDE, Pattern.class), parser.getValue(Constants.ARG_PROCESS, Pattern.class), conv, false);
 		} catch (ContentException e) {
 			throw new IOException(e.getLocalizedMessage(), e); 
