@@ -2,9 +2,15 @@ package chav1961.da.infer;
 
 
 import chav1961.da.util.Constants;
+
+
 import chav1961.da.util.interfaces.RdfFormat;
 import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
+
+// https://jena.apache.org/documentation/inference/
+// https://github.com/apache/jena/blob/main/jena-examples/src/main/java/arq/examples/riot/ExRIOT4_StreamRDF_Filter.java
+
 
 public class Application {
 	public static final String	ARG_RDF_URI = "rdfUri";
