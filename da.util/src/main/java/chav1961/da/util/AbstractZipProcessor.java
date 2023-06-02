@@ -197,6 +197,7 @@ public abstract class AbstractZipProcessor {
 				wr.write(newLogContent);
 				wr.write(System.lineSeparator());
 			}
+			wr.flush();
 			zos.closeEntry();
 		}
 	}
