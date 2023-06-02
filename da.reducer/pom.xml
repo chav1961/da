@@ -64,6 +64,12 @@
      		<artifactId>da.util</artifactId>
      		<version>${project.parent.version}</version>
      	</dependency>
+		<dependency>
+			<groupId>org.openrdf.sesame</groupId>
+			<artifactId>sesame-rio-api</artifactId>
+			<version>4.1.1</version>
+		</dependency>
+		<!-- Thanks for using https://jar-download.com -->
     </dependencies>
   
      <build>
