@@ -8,8 +8,13 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import chav1961.purelib.basic.SubstitutableProperties;
+import chav1961.purelib.basic.Utils;
+import chav1961.purelib.basic.exceptions.CommandLineParametersException;
+import chav1961.purelib.basic.exceptions.SyntaxException;
 
 public class DAUtils {
+	private static final String		RENAME_DIVIDER = "->";
+	
 	private DAUtils() {}
 	
 	public static InputStream newEmptyZip(final SubstitutableProperties props) throws IOException {
@@ -37,4 +42,37 @@ public class DAUtils {
 			}
 		}
 	}
+
+	public static String[][] parseRenameArgument(final String rename) throws IllegalArgumentException, CommandLineParametersException {
+		if (Utils.checkEmptyOrNullString(rename)) {
+			throw new IllegalArgumentException("Rename string can't be null or empty");
+		}
+		else {
+			final String[]		source = rename.split(";");
+			
+			if (source.length == 0 || Utils.checkArrayContent4Nulls(source, true) >= 0) {
+				throw new CommandLineParametersException("Rename list contains empties inside"); 
+			}
+			else {
+				final String[][]	result = new String[source.length][];
+				
+				for(int index = 0; index < result.length; index++) {
+					result[index] = parseRenameArgumentInternal(source[index]);
+				}
+				return result;
+			}
+		}
+	}
+	
+	private static String[] parseRenameArgumentInternal(final String arg) throws CommandLineParametersException {
+		final int 	index = arg.indexOf(RENAME_DIVIDER);
+		
+		if (index < 0) {
+			throw new CommandLineParametersException("Illegal rename argument ["+arg+"]: missing '->'"); 
+		}
+		else {
+			return new String[] {arg.substring(0, index).trim(), arg.substring(index + RENAME_DIVIDER.length()).trim()};
+		}
+	}
+
 }

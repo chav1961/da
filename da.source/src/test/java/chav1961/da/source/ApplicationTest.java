@@ -8,13 +8,15 @@ import java.io.InputStream;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import chav1961.da.util.Constants;
-import chav1961.da.util.ZipProcessingClass;
+import chav1961.da.util.DAUtils;
 import chav1961.purelib.basic.ArgParser;
+import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.ContentException;
 
@@ -24,20 +26,26 @@ public class ApplicationTest {
 	public void basicTest() throws IOException, ContentException {
 		final ArgParser	ap = new Application.ApplicationArgParser().parse("-"+Application.ARG_START_PIPE,"-"+Application.ARG_APPEND,"fsys:"+new File("./src/test/resources/folder1").toURI());
 		
-		try(final ByteArrayOutputStream	baos = new ByteArrayOutputStream()) {
-			Application.processZip(ZipProcessingClass.createZipTemplate(Utils.mkProps("key","value")), baos, ap);
+		try(final InputStream			is = DAUtils.newEmptyZip(new SubstitutableProperties(Utils.mkProps("key","value")));
+			final ZipInputStream		zis = new ZipInputStream(is);
+			final ByteArrayOutputStream	baos = new ByteArrayOutputStream();
+			final ZipOutputStream		zos = new ZipOutputStream(baos)) {
+			final Application			app = new Application(new String[0], new String[0][], ap.getValue(Application.ARG_APPEND, String[].class), System.err, false);
 			
-			try(final InputStream		is = new ByteArrayInputStream(baos.toByteArray());
-				final ZipInputStream	zis = new ZipInputStream(is)) {
+			app.process(zis, zos);
+			zos.finish();
+			
+			try(final InputStream		isR = new ByteArrayInputStream(baos.toByteArray());
+				final ZipInputStream	zisR = new ZipInputStream(isR)) {
 				ZipEntry	ze;
 			
-				ze = zis.getNextEntry();
+				ze = zisR.getNextEntry();
 				Assert.assertEquals(Constants.PART_TICKET, ze.getName());
 
-				ze = zis.getNextEntry();
+				ze = zisR.getNextEntry();
 				Assert.assertEquals("/x.txt", ze.getName());
 
-				ze = zis.getNextEntry();
+				ze = zisR.getNextEntry();
 				Assert.assertEquals(Constants.PART_LOG, ze.getName());
 				
 				Assert.assertNull(zis.getNextEntry());
@@ -51,32 +59,6 @@ public class ApplicationTest {
 			final ByteArrayOutputStream	baos = new ByteArrayOutputStream()) {
 			
 			Application.main(source, new String[]{"-"+Application.ARG_START_PIPE,"-"+Application.ARG_APPEND,"fsys:"+new File("./src/test/resources/folder1").toURI()}, baos, System.err);
-
-			try(final InputStream		is = new ByteArrayInputStream(baos.toByteArray());
-				final ZipInputStream	zis = new ZipInputStream(is)) {
-				final Properties		props = new Properties();
-				ZipEntry	ze;
-			
-				ze = zis.getNextEntry();
-				Assert.assertEquals(Constants.PART_TICKET, ze.getName());
-				props.load(zis);
-				
-				Assert.assertEquals(Utils.mkProps("key","value"), props);
-
-				ze = zis.getNextEntry();
-				Assert.assertEquals("/x.txt", ze.getName());
-
-				ze = zis.getNextEntry();
-				Assert.assertEquals(Constants.PART_LOG, ze.getName());
-				
-				Assert.assertNull(zis.getNextEntry());
-			}
-		}
-
-		try(final InputStream			source = ZipProcessingClass.createZipTemplate(Utils.mkProps("key","value"));
-			final ByteArrayOutputStream	baos = new ByteArrayOutputStream()) {
-			
-			Application.main(source, new String[]{"-"+Constants.ARG_ZIP,"-"+Application.ARG_APPEND,"fsys:"+new File("./src/test/resources/folder1").toURI()}, baos, System.err);
 
 			try(final InputStream		is = new ByteArrayInputStream(baos.toByteArray());
 				final ZipInputStream	zis = new ZipInputStream(is)) {
