@@ -8,5 +8,8 @@ public class Constants {
 	public static final String	ARG_REMOVE = "remove";  
 	
 	public static final String	PART_TICKET = "ticket.txt";  
-	public static final String	PART_LOG = "log.txt";  
+	public static final String	PART_LOG = "log.txt";
+	
+	public static final String	PART_KEY_CONTENT_TYPE = "contentType";  
+	
 }

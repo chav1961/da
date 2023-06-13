@@ -64,12 +64,18 @@
      		<artifactId>da.util</artifactId>
      		<version>${project.parent.version}</version>
      	</dependency>
-		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-rdf-jena -->
+		<!-- https://mvnrepository.com/artifact/org.openrdf.sesame/sesame-rio-api -->
 		<dependency>
-		    <groupId>org.apache.commons</groupId>
-		    <artifactId>commons-rdf-jena</artifactId>
-		    <version>0.5.0</version>
-		</dependency>     	
+		    <groupId>org.openrdf.sesame</groupId>
+		    <artifactId>sesame-rio-api</artifactId>
+		    <version>4.1.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.openrdf/rio -->
+		<dependency>
+		    <groupId>org.openrdf</groupId>
+		    <artifactId>rio</artifactId>
+		    <version>1.0.10</version>
+		</dependency>
     </dependencies>
   
      <build>

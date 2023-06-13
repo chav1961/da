@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -23,7 +22,6 @@ import chav1961.purelib.basic.interfaces.LoggerFacade;
 import chav1961.purelib.enumerations.ContinueMode;
 import chav1961.purelib.fsys.FileSystemFactory;
 import chav1961.purelib.fsys.interfaces.FileSystemInterface;
-import chav1961.purelib.fsys.interfaces.FileSystemInterface.FileSystemListCallbackInterface;
 
 public class Application extends AbstractZipProcessor {
 	public static final String	ARG_START_PIPE = "startPipe";
@@ -33,7 +31,7 @@ public class Application extends AbstractZipProcessor {
 	private final PrintStream	ps;
 	private final boolean		debug;
 	
-	public Application(final String[] removeMask, final String[][] renameMask, final String[] appends, final PrintStream err, final boolean debug) throws SyntaxException {
+	Application(final String[] removeMask, final String[][] renameMask, final String[] appends, final PrintStream err, final boolean debug) throws SyntaxException {
 		super(new String[0], new String[] {".+"}, removeMask, renameMask);
 		this.appends = appends;
 		this.ps = err;
@@ -82,10 +80,6 @@ public class Application extends AbstractZipProcessor {
 		}
 	}
 	
-	private static void message(final PrintStream ps, final String format, final Object... parameters) {
-		ps.println(String.format(format, parameters));
-	}
-	
 	public static void main(final String[] args) {
 		System.exit(main(System.in, args, System.out, System.err));
 	}
@@ -107,16 +101,12 @@ public class Application extends AbstractZipProcessor {
 			if (parser.getValue(ARG_START_PIPE, boolean.class)) {
 				final SubstitutableProperties	props = new SubstitutableProperties();
 				
-				if (debug) {
-					message(err, "%1$s argument typed - new empty stream created from the standard input...", ARG_START_PIPE);
-				}
+				message(err, "%1$s argument typed - new empty stream created from the standard input...", ARG_START_PIPE);
 				props.load(is);
 				source = DAUtils.newEmptyZip(props);
 			}
 			else {
-				if (debug) {
-					message(err, "Process standard input...");
-				}
+				message(err, "Process standard input...");
 				source = is;
 			}
 
@@ -138,12 +128,16 @@ public class Application extends AbstractZipProcessor {
 			return 129;
 		}
 	}
+
+	private static void message(final PrintStream ps, final String format, final Object... parameters) {
+		ps.println("da.source: "+String.format(format, parameters));
+	}
 	
 	static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
 			new BooleanArg(Constants.ARG_DEBUG, false, "Turn on debug trace", false),
-			new PatternArg(Constants.ARG_REMOVE, false, "Remove *.zip parts from output stream", "\uFFFF"),
-			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description"),
+			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
+			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
 			new BooleanArg(ARG_START_PIPE, false, "Start new pipe. Standard input must contain content of the ["+Constants.PART_TICKET+"] in this case", false),
 			new StringListArg(ARG_APPEND, false, false, "Append content to input stream in the input *.zip. Refs must be any valid URIs"),
 		};
