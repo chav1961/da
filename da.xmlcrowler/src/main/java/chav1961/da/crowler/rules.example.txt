@@ -1,0 +1,9 @@
+head
+    zzzz
+body
+    filePattern: *.s
+    xmlPattern:
+         template:
+         format: |
+tail
+    ssss
