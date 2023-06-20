@@ -18,10 +18,15 @@ import java.util.zip.ZipOutputStream;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.Utils;
-import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
 
+/**
+ * <p>This class supports basic functionality to process ZIP stream in Data Acquisition pipe. It's strongly recommended to use this class as parent for
+ * your own application to process Data Acquisition pipe</p> 
+ * @author Alexander Chernomyrdin aka chav1961
+ * @since 0.0.1
+ */
 public abstract class AbstractZipProcessor {
 	private static final int	STATE_BEFORE_TICKET = 0;
 	private static final int	STATE_INSIDE_CONTENT = 1;
@@ -37,7 +42,16 @@ public abstract class AbstractZipProcessor {
 	private final Pattern[]		toRename;
 	private final String[]		renameFormat;
 										
-	protected AbstractZipProcessor(final String[] processMask, final String[] passMask, final String[] removeMask, final String[][] renameMask) throws SyntaxException {
+	/**
+	 * <p>Constructor of the class. The first three arguments in the constructor must be valid {@linkplain Pattern} values. The fourth argument format is described {@linkplain DAUtils#parseRenameArgument(String) here}.</p>
+	 * @param processMask parsed argument from {@value Constants#ARG_PROCESS} command line parameter. Can't be null but can be empty.
+	 * @param passMask parsed argument from {@value Constants#ARG_PASS} command line parameter. Can't be null but can be empty.
+	 * @param removeMask parsed argument from {@value Constants#ARG_REMOVE} command line parameter. Can't be null but can be empty.
+	 * @param renameMask parsed argument from {@value Constants#ARG_RENAME} command line parameter. Can't be null but can be empty.
+	 * @throws IllegalArgumentException on any argument errors
+	 * @throws SyntaxException when any pattern error was detected.
+	 */
+	protected AbstractZipProcessor(final String[] processMask, final String[] passMask, final String[] removeMask, final String[][] renameMask) throws SyntaxException, IllegalArgumentException {
 		if (processMask == null || processMask.length > 0 && Utils.checkArrayContent4Nulls(processMask, true) >= 0) {
 			throw new IllegalArgumentException("Process mask is null or contains nulls/empties inside");
 		}
@@ -105,101 +119,149 @@ public abstract class AbstractZipProcessor {
 		}
 	}
 	
+	/**
+	 * <p>This is a callback to process part content. The callback will be called for all the parts matched to {@value Constants#ARG_PROCESS} or <i>not</i> matched to {@value Constants#ARG_PASS} command line argument.
+	 * The method will be called after calling {@linkplain #processTicket(SubstitutableProperties, LoggerFacade)} method</p>
+	 * </p>Don't close source or target stream during processing (including implicit closing by using <b>try-with-resource</b> inside the method).</p> 
+	 * @param part part name. Can't be null or empty.
+	 * @param props content of the {@value Constants#PART_TICKET} part. Don't change it's content can't during this method call. Can't be null
+	 * @param logger logger to print any processing errors into. Can't be null
+	 * @param source source input stream. Can't be null. Avoid using cast to {@linkplain ZipInputStream} because it can be changed in the future. 
+	 * @param target target output stream. Can't be null. Avoid using cast to {@linkplain ZipOutputStream} because it can be changed in the future.
+	 * @throws IOException on any I/O errors.
+	 */
 	protected abstract void processPart(final String part, final SubstitutableProperties props, final LoggerFacade logger, final InputStream source, final OutputStream target) throws IOException; 
-	
+
+	/**
+	 * <p>This is a callback to process {@linkplain Constants#PART_TICKET} part content. This method will be called as same first during ZIP processing.</p>
+	 * @param props content of the {@linkplain Constants#PART_TICKET} part. Can't be null. Any changes you make with it will be reflected in the output ZIP content
+	 * @param logger logger to print any processing errors into. Can't be null
+	 * @throws IOException on any I/O errors.
+	 */
 	protected void processTicket(final SubstitutableProperties props, final LoggerFacade logger) throws IOException {
 	}
 
-	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final ZipOutputStream zos) throws IOException {
+	/**
+	 * <p>This is a callback to process appending any data into Data Acquisition pipe. This method will be called as same last during ZIP processing.</p>
+	 * @param props content of the {@value Constants#PART_TICKET} part. Don't change it's content can't during this method call. Can't be null
+	 * @param logger logger to print any processing errors into. Can't be null
+	 * @param target target output stream. Can't be null. Avoid using cast to {@linkplain ZipOutputStream} because it can be changed in the future.
+	 * @throws IOException on any I/O errors.
+	 */
+	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final OutputStream target) throws IOException {
 	}
-	
-	protected void append(final String part, final InputStream is, final ZipOutputStream zos) throws IOException {
-		final ZipEntry	zeOut = new ZipEntry(part);
+
+	/**
+	 * <p>This is an utility method to append new part into ZIP stream. Call this method from {@linkplain #processAppending(SubstitutableProperties, LoggerFacade, OutputStream)}
+	 * method only</p>
+	 * @param part part name to append. Can' be null or empty
+	 * @param is content to append into ZIP stream. Can't be null
+	 * @param target target output stream. Can't be null. Avoid using cast to {@linkplain ZipOutputStream} because it can be changed in the future.
+	 * @throws IOException
+	 */
+	protected void append(final String part, final InputStream is, final OutputStream target) throws IOException {
+		final ZipOutputStream	zos = (ZipOutputStream)target;
+		final ZipEntry			zeOut = new ZipEntry(part);
 		
 		zeOut.setMethod(ZipEntry.DEFLATED);
 		zos.putNextEntry(zeOut);
 		Utils.copyStream(is, zos);
 		zos.closeEntry();
 	}
-	
-	public void process(final ZipInputStream zis, final ZipOutputStream zos) throws IOException {
-		final LoggerFacade				slf = LoggerFacade.Factory.newInstance(URI.create(LoggerFacade.LOGGER_SCHEME+":string:/"));
-		final SubstitutableProperties	props = new SubstitutableProperties();
-		String		logContent = "";
-		int 		state = STATE_BEFORE_TICKET;
-		ZipEntry	ze, zeOut;
-		
-		while ((ze = zis.getNextEntry()) != null) {
-			switch (state) {
-				case STATE_BEFORE_TICKET	:
-					if (!Constants.PART_TICKET.equals(ze.getName())) {
-						throw new IOException("Zip strem structure corrupted: the same first part in the stream must be ["+Constants.PART_TICKET+"]");
-					}
-					else {
-						props.load(zis);
-						processTicket(props, slf);
-						
-						zeOut = new ZipEntry(Constants.PART_TICKET);
-						zeOut.setMethod(ZipEntry.DEFLATED);
-						zos.putNextEntry(zeOut);
-						props.store(zos, null);
-						zos.closeEntry();
-						state = STATE_INSIDE_CONTENT;
-					}
-					break;
-				case STATE_INSIDE_CONTENT	:
-					if (Constants.PART_LOG.equals(ze.getName())) {
-						try(final StringWriter	wr = new StringWriter()) {
-							Utils.copyStream(new InputStreamReader(zis), wr);
-							logContent = wr.toString().trim();
-						}
-						state = STATE_BEFORE_LOG;
-					}
-					else if (mustPass(ze.getName())) {
-						if (!mustRemove(ze.getName())) {
-							append(renameIfRequired(ze.getName()), zis, zos);
-						}
-					}
-					else {
-						if (!mustRemove(ze.getName())) {
-							zeOut = new ZipEntry(renameIfRequired(ze.getName()));
-							zeOut.setMethod(ZipEntry.DEFLATED);
-							zos.putNextEntry(zeOut);
-							processPart(ze.getName(), props, slf, zis, zos);
-							zos.closeEntry();
-						}
-						else {
-							processPart(ze.getName(), props, slf, zis, NULL_OUTPUT);
-						}
-					}
-					break;
-				default :
-					throw new UnsupportedOperationException("State ["+state+"] is not supported yet"); 
-			}
+
+	/**
+	 * <p>Process Data Acquisition pipe.</p>
+	 * @param zis input ZIP to process. Can't be null
+	 * @param zos Output ZIP to process. Can't be null
+	 * @throws NullPointerException any argument is null
+	 * @throws IOException on any I/O errors
+	 */
+	public void process(final ZipInputStream zis, final ZipOutputStream zos) throws IOException, NullPointerException {
+		if (zis == null) {
+			throw new NullPointerException("Input stream can't be null"); 
 		}
-		if (state != STATE_BEFORE_LOG) {
-			throw new IOException("Zip strem structure corrupted: the same last part in the stream must be ["+Constants.PART_LOG+"]");
+		else if (zos == null) {
+			throw new NullPointerException("Output stream can't be null"); 
 		}
 		else {
-			processAppending(props, slf, zos);
+			final LoggerFacade				slf = LoggerFacade.Factory.newInstance(URI.create(LoggerFacade.LOGGER_SCHEME+":string:/"));
+			final SubstitutableProperties	props = new SubstitutableProperties();
+			String		logContent = "";
+			int 		state = STATE_BEFORE_TICKET;
+			ZipEntry	ze, zeOut;
 			
-			zeOut = new ZipEntry(Constants.PART_LOG);
-			zeOut.setMethod(ZipEntry.DEFLATED);
-			zos.putNextEntry(zeOut);
-			
-			final Writer wr = new OutputStreamWriter(zos, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-			final String newLogContent = slf.toString().trim(); 
-					
-			if (!Utils.checkEmptyOrNullString(logContent)) {
-				wr.write(logContent);
-				wr.write(System.lineSeparator());
+			while ((ze = zis.getNextEntry()) != null) {
+				switch (state) {
+					case STATE_BEFORE_TICKET	:
+						if (!Constants.PART_TICKET.equals(ze.getName())) {
+							throw new IOException("Zip strem structure corrupted: the same first part in the stream must be ["+Constants.PART_TICKET+"]");
+						}
+						else {
+							props.load(zis);
+							processTicket(props, slf);
+							
+							zeOut = new ZipEntry(Constants.PART_TICKET);
+							zeOut.setMethod(ZipEntry.DEFLATED);
+							zos.putNextEntry(zeOut);
+							props.store(zos, null);
+							zos.closeEntry();
+							state = STATE_INSIDE_CONTENT;
+						}
+						break;
+					case STATE_INSIDE_CONTENT	:
+						if (Constants.PART_LOG.equals(ze.getName())) {
+							try(final StringWriter	wr = new StringWriter()) {
+								Utils.copyStream(new InputStreamReader(zis), wr);
+								logContent = wr.toString().trim();
+							}
+							state = STATE_BEFORE_LOG;
+						}
+						else if (mustPass(ze.getName())) {
+							if (!mustRemove(ze.getName())) {
+								append(renameIfRequired(ze.getName()), zis, zos);
+							}
+						}
+						else {
+							if (!mustRemove(ze.getName())) {
+								zeOut = new ZipEntry(renameIfRequired(ze.getName()));
+								zeOut.setMethod(ZipEntry.DEFLATED);
+								zos.putNextEntry(zeOut);
+								processPart(ze.getName(), props, slf, zis, zos);
+								zos.closeEntry();
+							}
+							else {
+								processPart(ze.getName(), props, slf, zis, NULL_OUTPUT);
+							}
+						}
+						break;
+					default :
+						throw new UnsupportedOperationException("State ["+state+"] is not supported yet"); 
+				}
 			}
-			if (!Utils.checkEmptyOrNullString(newLogContent)) {
-				wr.write(newLogContent);
-				wr.write(System.lineSeparator());
+			if (state != STATE_BEFORE_LOG) {
+				throw new IOException("Zip strem structure corrupted: the same last part in the stream must be ["+Constants.PART_LOG+"]");
 			}
-			wr.flush();
-			zos.closeEntry();
+			else {
+				processAppending(props, slf, zos);
+				
+				zeOut = new ZipEntry(Constants.PART_LOG);
+				zeOut.setMethod(ZipEntry.DEFLATED);
+				zos.putNextEntry(zeOut);
+				
+				final Writer wr = new OutputStreamWriter(zos, PureLibSettings.DEFAULT_CONTENT_ENCODING);
+				final String newLogContent = slf.toString().trim(); 
+						
+				if (!Utils.checkEmptyOrNullString(logContent)) {
+					wr.write(logContent);
+					wr.write(System.lineSeparator());
+				}
+				if (!Utils.checkEmptyOrNullString(newLogContent)) {
+					wr.write(newLogContent);
+					wr.write(System.lineSeparator());
+				}
+				wr.flush();
+				zos.closeEntry();
+			}
 		}
 	}
 

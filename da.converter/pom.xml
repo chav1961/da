@@ -64,17 +64,54 @@
      		<artifactId>da.util</artifactId>
      		<version>${project.parent.version}</version>
      	</dependency>
-		<!-- https://mvnrepository.com/artifact/org.openrdf.sesame/sesame-rio-api -->
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-api -->
 		<dependency>
-		    <groupId>org.openrdf.sesame</groupId>
-		    <artifactId>sesame-rio-api</artifactId>
-		    <version>4.1.2</version>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-api</artifactId>
+		    <version>4.3.2</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.openrdf/rio -->
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-turtle -->
 		<dependency>
-		    <groupId>org.openrdf</groupId>
-		    <artifactId>rio</artifactId>
-		    <version>1.0.10</version>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-turtle</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-rdfxml -->
+		<dependency>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-rdfxml</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-ntriples -->
+		<dependency>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-ntriples</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-nquads -->
+		<dependency>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-nquads</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-trig -->
+		<dependency>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-trig</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.rdf4j/rdf4j-rio-jsonld -->
+		<dependency>
+		    <groupId>org.eclipse.rdf4j</groupId>
+		    <artifactId>rdf4j-rio-jsonld</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-nop -->
+		<dependency>
+		    <groupId>org.slf4j</groupId>
+		    <artifactId>slf4j-nop</artifactId>
+		    <version>2.0.7</version>
+		    <scope>test</scope>
 		</dependency>
     </dependencies>
   

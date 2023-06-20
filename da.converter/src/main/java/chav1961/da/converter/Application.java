@@ -2,6 +2,7 @@ package chav1961.da.converter;
 
 
 import java.io.IOException;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -12,19 +13,18 @@ import java.io.Writer;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import org.openrdf.model.Statement;
-import org.openrdf.rio.RDFFormat;
-import org.openrdf.rio.RDFHandler;
-import org.openrdf.rio.RDFHandlerException;
-import org.openrdf.rio.RDFParser;
-import org.openrdf.rio.RDFWriter;
-import org.openrdf.rio.Rio;
-import org.openrdf.rio.RDFFormat;
+import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.rio.RDFFormat;
+import org.eclipse.rdf4j.rio.RDFHandler;
+import org.eclipse.rdf4j.rio.RDFHandlerException;
+import org.eclipse.rdf4j.rio.RDFParser;
+import org.eclipse.rdf4j.rio.RDFWriter;
+import org.eclipse.rdf4j.rio.Rio;
 
 import chav1961.da.util.AbstractZipProcessor;
 import chav1961.da.util.Constants;
 import chav1961.da.util.DAUtils;
-import chav1961.da.util.interfaces.DAContentFormat;
+import chav1961.da.util.interfaces.ContentFormat;
 import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
@@ -35,36 +35,55 @@ import chav1961.purelib.basic.exceptions.SyntaxException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
 import chav1961.purelib.basic.interfaces.LoggerFacade.Severity;
 
+/**
+ * <p>This class is a main class to use as RDF data converter in Data Acquisition pipe. The class is a middle or terminal element in the Data Acquisition pipe.
+ * To convert RDF part content type </p>
+ * 
+ * <p>This class also supported all standard command line keys:</p>
+ * <ul>
+ * <li> -process &lt;file_regex&gt; to process some files in Data Acquisition pipe
+ * <li> -pass &lt;file_regex&gt; to skip processing some files in Data Acquisition pipe
+ * <li> -remove &lt;file_regex&gt; to remove some files from Data Acquisition pipe
+ * <li> -rename &lt;name_regex->new_name&gt; to rename some files in Data Acquisition pipe
+ * <li> -debug turn on debug trace to the System.err stream
+ * </ul>
+ * <p>Source stream for the pipe element is the System.in, destination stream for the pipe element is System.out. Both the streams must contain Data Acquisition pipe content.</p>  
+ *  
+ * @author Alexander Chernomyrdin aka chav1961
+ * @since 0.0.1
+ */
 public class Application extends AbstractZipProcessor {
 	public static final String	ARG_INPUT_FORMAT = "if";
 	public static final String	ARG_OUTPUT_FORMAT = "of";
 	
-	private final RDFFormat			fromFormat; 
-	private final RDFFormat			toFormat;
+	private final ContentFormat		fromFormat; 
+	private final RDFFormat			fromNative; 
+	private final ContentFormat		toFormat; 
+	private final RDFFormat			toNative;
 	private final PrintStream		ps;
 	private final boolean			debug;
 	
-	Application(final String[] processMask, final String[] passMask, final String[] removeMask, final String[][] renameMask, final DAContentFormat from, final DAContentFormat to, final PrintStream ps, final boolean debug) throws SyntaxException {
+	Application(final String[] processMask, final String[] passMask, final String[] removeMask, final String[][] renameMask, final ContentFormat from, final ContentFormat to, final PrintStream ps, final boolean debug) throws SyntaxException {
 		super(processMask, passMask, removeMask, renameMask);
-		this.fromFormat = toRdfFormat(from);
-		this.toFormat = toRdfFormat(to);
+		this.fromFormat = from;
+		this.fromNative = toRdfFormat(from);
+		this.toFormat = to;
+		this.toNative = toRdfFormat(to);
 		this.ps = ps;
 		this.debug = debug;
 	}
 
 	@Override
 	protected void processTicket(final SubstitutableProperties props, final LoggerFacade logger) throws IOException {
-		try {
-			if (toRdfFormat(props.getProperty(Constants.PART_KEY_CONTENT_TYPE, DAContentFormat.class)) != fromFormat) {
-				logger.message(Severity.warning, "Content type [%1$s] from %2$s is differ than typed in the command string. [%3$s] will be used",
-						props.getProperty(Constants.PART_KEY_CONTENT_TYPE, DAContentFormat.class),
-						Constants.PART_TICKET,
-						fromFormat);
-			}
-			super.processTicket(props, logger);
-		} catch (SyntaxException e) {
-			throw new IOException(e); 
+		if (props.getProperty(Constants.PART_KEY_CONTENT_TYPE, ContentFormat.class) != fromFormat) {
+			logger.message(Severity.warning, 
+					"Content type [%1$s] from %2$s is differ than typed in the command string. [%3$s] will be used",
+					props.getProperty(Constants.PART_KEY_CONTENT_TYPE, ContentFormat.class),
+					Constants.PART_TICKET,
+					fromFormat);
 		}
+		super.processTicket(props, logger);
+		props.setProperty(Constants.PART_KEY_CONTENT_TYPE, toFormat.name());
 	}
 	
 	@Override
@@ -74,9 +93,13 @@ public class Application extends AbstractZipProcessor {
 		}
 		else {
 			final Reader	rdr = new InputStreamReader(source, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-			final RDFParser parser = Rio.createParser(fromFormat);
+			final RDFParser parser = Rio.createParser(fromNative);
 			final Writer	wr = new OutputStreamWriter(target, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-			final RDFWriter writer = Rio.createWriter(toFormat, wr);
+			final RDFWriter writer = Rio.createWriter(toNative, wr);
+			
+			if (debug) {
+				message(ps, "Processing part ["+part+"]...", part);
+			}
 			
 			parser.setRDFHandler(new RDFHandler() {
 				@Override
@@ -103,6 +126,7 @@ public class Application extends AbstractZipProcessor {
 				public void endRDF() throws RDFHandlerException {
 					writer.endRDF();
 				}
+
 			}).parse(rdr, "");
 			wr.flush();
 		}
@@ -118,16 +142,17 @@ public class Application extends AbstractZipProcessor {
 		try{final ArgParser		parser = parserTemplate.parse(args);
 			final boolean		debug = parser.getValue(Constants.ARG_DEBUG, boolean.class);
 			final Application	app = new Application(
-										parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : new String[0] ,
-										parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : new String[0] ,
-										parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : new String[0] ,
+										parser.isTyped(Constants.ARG_PROCESS) ? new String[] {parser.getValue(Constants.ARG_PROCESS, String.class)} : Constants.MASK_NONE ,
+										parser.isTyped(Constants.ARG_PASS) ? new String[] {parser.getValue(Constants.ARG_PASS, String.class)} : Constants.MASK_NONE ,
+										parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : Constants.MASK_NONE ,
 										parser.isTyped(Constants.ARG_RENAME) ? DAUtils.parseRenameArgument(parser.getValue(Constants.ARG_RENAME, String.class)) : new String[0][],
-										parser.getValue(ARG_INPUT_FORMAT, DAContentFormat.class),
-										parser.getValue(ARG_OUTPUT_FORMAT, DAContentFormat.class),
-										System.err, 
+										parser.getValue(ARG_INPUT_FORMAT, ContentFormat.class),
+										parser.getValue(ARG_OUTPUT_FORMAT, ContentFormat.class),
+										err, 
 										debug);
 			
 			final long	startTime=  System.currentTimeMillis();
+			
 			try(final ZipInputStream	zis = new ZipInputStream(is);
 				final ZipOutputStream	zos = new ZipOutputStream(os)) {
 				
@@ -147,9 +172,9 @@ public class Application extends AbstractZipProcessor {
 		}
 	}
 
-	private static RDFFormat toRdfFormat(final DAContentFormat format) throws SyntaxException {
+	private static RDFFormat toRdfFormat(final ContentFormat format) throws SyntaxException {
 		try{
-			return (RDFFormat) RDFFormat.class.getField(format.name()).get(null);
+			return (RDFFormat) RDFFormat.class.getField(format.getNativeName()).get(null);
 		} catch (IllegalAccessException | NoSuchFieldException | SecurityException e) {
 			throw new SyntaxException(0, 0, "Unknown format ["+format+"]");
 		}
@@ -166,8 +191,8 @@ public class Application extends AbstractZipProcessor {
 			new PatternArg(Constants.ARG_PASS, false, "Pass the given parts in the input *.zip without processing. Types as pattern[,...]. If missing, all the parts will be processed. Mutually exclusive with "+Constants.ARG_PROCESS+" argument", ""),
 			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
 			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
-			new EnumArg<DAContentFormat>(ARG_INPUT_FORMAT, DAContentFormat.class, false, false, "Input format. When typed, replaces 'ticket.txt' key before conversion"),
-			new EnumArg<DAContentFormat>(ARG_OUTPUT_FORMAT, DAContentFormat.class, false, false, "Output format. When typed, replaces 'ticket.txt' key after conversion'."),
+			new EnumArg<ContentFormat>(ARG_INPUT_FORMAT, ContentFormat.class, false, false, "Input format. When typed, replaces 'ticket.txt' key before conversion"),
+			new EnumArg<ContentFormat>(ARG_OUTPUT_FORMAT, ContentFormat.class, false, false, "Output format. When typed, replaces 'ticket.txt' key after conversion'."),
 		};
 		
 		ApplicationArgParser() {

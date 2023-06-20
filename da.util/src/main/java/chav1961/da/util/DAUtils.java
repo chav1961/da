@@ -10,14 +10,25 @@ import java.util.zip.ZipOutputStream;
 import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
-import chav1961.purelib.basic.exceptions.SyntaxException;
 
+/**
+ * <p>This class contanns a set of useful methods to use in Data Acquisition project.</p> 
+ * @author Alexander Chernomyrdin aka chav1961
+ * @since 0.0.1
+ */
 public class DAUtils {
 	private static final String		RENAME_DIVIDER = "->";
 	
 	private DAUtils() {}
 	
-	public static InputStream newEmptyZip(final SubstitutableProperties props) throws IOException {
+	/**
+	 * <p>Create new empty ZIP source according to Data Acquisition pipe standard</p>
+	 * @param props properties to use as {@value Constants#PART_TICKET} content. Can't be null</p>
+	 * @return ZIP source. Can't be null.
+	 * @throws NullPointerException when properties is null
+	 * @throws IOException on any I/O errors
+	 */
+	public static InputStream newEmptyZip(final SubstitutableProperties props) throws NullPointerException, IOException {
 		if (props == null) {
 			throw new NullPointerException("Properteis can't be null");
 		}
@@ -43,6 +54,18 @@ public class DAUtils {
 		}
 	}
 
+	/**
+	 * <p>Parse {@value Constants#ARG_RENAME} argument from the command line. Argument string must be typed as:</p>
+	 * <code>
+	 * argument = arg (';' argument)*
+	 * arg = pattern '->' format
+	 * </code>
+	 * <p>Pattern and format values see  {@linkplain String#replaceAll(String, String)} method description.</p>
+	 * @param rename rename argument value. Can't be null or empty
+	 * @return arguments parsed. Will be String[*][2] = {{pattern, format}, ... }. Can't be null or empty array
+	 * @throws IllegalArgumentException string is null or empty
+	 * @throws CommandLineParametersException on any format errors
+	 */
 	public static String[][] parseRenameArgument(final String rename) throws IllegalArgumentException, CommandLineParametersException {
 		if (Utils.checkEmptyOrNullString(rename)) {
 			throw new IllegalArgumentException("Rename string can't be null or empty");
@@ -74,5 +97,4 @@ public class DAUtils {
 			return new String[] {arg.substring(0, index).trim(), arg.substring(index + RENAME_DIVIDER.length()).trim()};
 		}
 	}
-
 }

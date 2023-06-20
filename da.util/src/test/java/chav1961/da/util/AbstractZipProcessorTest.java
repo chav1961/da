@@ -28,7 +28,6 @@ public class AbstractZipProcessorTest {
 	static final String		PART_REMOVE = "partRemove";
 	static final String		PART_RENAME = "partRename";
 	
-	private static final String[]		NULL_STRING = new String[0];
 	private static final String[]		EMPTY_STRING = new String[] {""};
 	private static final String[][]		NULL_STRING_PAIR = new String[0][];
 	private static final OutputStream	NULL_STREAM = new OutputStream() {
@@ -38,7 +37,7 @@ public class AbstractZipProcessorTest {
 	
 	@Test
 	public void basicTest() throws SyntaxException, IOException {
-		final AbstractZipProcessor	azp = new PseudoZipProcessor(new String[]{".*"}, NULL_STRING, NULL_STRING, NULL_STRING_PAIR);
+		final AbstractZipProcessor	azp = new PseudoZipProcessor(Constants.MASK_ANY, Constants.MASK_NONE, Constants.MASK_NONE, NULL_STRING_PAIR);
 
 		try(final ByteArrayOutputStream	baos = new ByteArrayOutputStream()) {
 			try(final ZipInputStream	zis = new ZipInputStream(DAUtils.newEmptyZip(new SubstitutableProperties()));
@@ -61,42 +60,42 @@ public class AbstractZipProcessorTest {
 		} catch (IOException exc) {
 		}
 		
-		try{new PseudoZipProcessor(null, NULL_STRING, NULL_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(null, Constants.MASK_NONE, Constants.MASK_NONE, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (null 1-st argument)");
 		} catch (IllegalArgumentException exc) {
 		}
-		try{new PseudoZipProcessor(EMPTY_STRING, NULL_STRING, NULL_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(EMPTY_STRING, Constants.MASK_NONE, Constants.MASK_NONE, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (empty 1-st argument)");
 		} catch (IllegalArgumentException exc) {
 		}
 		
-		try{new PseudoZipProcessor(NULL_STRING, null, NULL_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, null, Constants.MASK_NONE, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (null 2-st argument)");
 		} catch (IllegalArgumentException exc) {
 		}
-		try{new PseudoZipProcessor(NULL_STRING, EMPTY_STRING, NULL_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, EMPTY_STRING, Constants.MASK_NONE, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (empty 2-st argument)");
 		} catch (IllegalArgumentException exc) {
 		}
-		try{new PseudoZipProcessor(NULL_STRING, NULL_STRING, NULL_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_NONE, Constants.MASK_NONE, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (both 1-st and 2-st arguments are missing)");
 		} catch (IllegalArgumentException exc) {
 		}
 		
-		try{new PseudoZipProcessor(NULL_STRING, NULL_STRING, null, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_NONE, null, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (null 3-rd argument)");
 		} catch (IllegalArgumentException exc) {
 		}
-		try{new PseudoZipProcessor(NULL_STRING, NULL_STRING, EMPTY_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_NONE, EMPTY_STRING, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (empty 3-rd argument)");
 		} catch (IllegalArgumentException exc) {
 		}
 		
-		try{new PseudoZipProcessor(NULL_STRING, NULL_STRING, NULL_STRING, null);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_NONE, Constants.MASK_NONE, null);
 			Assert.fail("Mandatory exception was not detected (null 4-th argument)");
 		} catch (IllegalArgumentException exc) {
 		}
-		try{new PseudoZipProcessor(NULL_STRING, NULL_STRING, NULL_STRING, NULL_STRING_PAIR);
+		try{new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_NONE, Constants.MASK_NONE, NULL_STRING_PAIR);
 			Assert.fail("Mandatory exception was not detected (empty pairs in 4-th argument)");
 		} catch (IllegalArgumentException exc) {
 		}	
@@ -122,7 +121,7 @@ public class AbstractZipProcessorTest {
 				final ZipInputStream	zis = new ZipInputStream(is);
 				final ZipOutputStream	zos = new ZipOutputStream(baos)) {
 				
-				new PseudoZipProcessor(new String[] {".*"}, NULL_STRING, NULL_STRING, NULL_STRING_PAIR).process(zis, zos);
+				new PseudoZipProcessor(Constants.MASK_ANY, Constants.MASK_NONE, Constants.MASK_NONE, NULL_STRING_PAIR).process(zis, zos);
 			}
 			final Map<String, String>	result = DAUtilsTest.loadZipContent(new ByteArrayInputStream(baos.toByteArray()));
 			
@@ -145,7 +144,7 @@ public class AbstractZipProcessorTest {
 				final ZipInputStream	zis = new ZipInputStream(is);
 				final ZipOutputStream	zos = new ZipOutputStream(baos)) {
 				
-				new PseudoZipProcessor(NULL_STRING, new String[] {".*"}, NULL_STRING, NULL_STRING_PAIR).process(zis, zos);
+				new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_ANY, Constants.MASK_NONE, NULL_STRING_PAIR).process(zis, zos);
 			}
 			final Map<String, String>	result = DAUtilsTest.loadZipContent(new ByteArrayInputStream(baos.toByteArray()));
 			
@@ -167,7 +166,7 @@ public class AbstractZipProcessorTest {
 				final ZipInputStream	zis = new ZipInputStream(is);
 				final ZipOutputStream	zos = new ZipOutputStream(baos)) {
 				
-				new PseudoZipProcessor(NULL_STRING, new String[] {".*"}, new String[] {PART_REMOVE}, NULL_STRING_PAIR).process(zis, zos);
+				new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_ANY, new String[] {PART_REMOVE}, NULL_STRING_PAIR).process(zis, zos);
 			}
 			final Map<String, String>	result = DAUtilsTest.loadZipContent(new ByteArrayInputStream(baos.toByteArray()));
 			
@@ -188,7 +187,7 @@ public class AbstractZipProcessorTest {
 				final ZipInputStream	zis = new ZipInputStream(is);
 				final ZipOutputStream	zos = new ZipOutputStream(baos)) {
 				
-				new PseudoZipProcessor(NULL_STRING, new String[] {".*"}, NULL_STRING, new String[][] {new String[] {PART_RENAME, "assa"}}).process(zis, zos);
+				new PseudoZipProcessor(Constants.MASK_NONE, Constants.MASK_ANY, Constants.MASK_NONE, new String[][] {new String[] {PART_RENAME, "assa"}}).process(zis, zos);
 			}
 			final Map<String, String>	result = DAUtilsTest.loadZipContent(new ByteArrayInputStream(baos.toByteArray()));
 			
@@ -244,7 +243,7 @@ class PrepareZipProcessor extends AbstractZipProcessor {
 	}
 	
 	@Override
-	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final ZipOutputStream zos) throws IOException {
+	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final OutputStream zos) throws IOException {
 		append(AbstractZipProcessorTest.PART_PROCESS, new ByteArrayInputStream(AbstractZipProcessorTest.PART_PROCESS.getBytes()), zos);
 		append(AbstractZipProcessorTest.PART_PASS, new ByteArrayInputStream(AbstractZipProcessorTest.PART_PASS.getBytes()), zos);
 		append(AbstractZipProcessorTest.PART_REMOVE, new ByteArrayInputStream(AbstractZipProcessorTest.PART_REMOVE.getBytes()), zos);

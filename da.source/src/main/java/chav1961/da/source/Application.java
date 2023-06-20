@@ -6,6 +6,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URI;
 import java.net.URL;
+import java.util.Properties;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
@@ -23,6 +24,26 @@ import chav1961.purelib.enumerations.ContinueMode;
 import chav1961.purelib.fsys.FileSystemFactory;
 import chav1961.purelib.fsys.interfaces.FileSystemInterface;
 
+/**
+ * <p>This class is a main class to use as pipe element in Data Acquisition pipe. The class can be used:</p>
+ * <ul>
+ * <li>as the same first element in Data Acquisition pipe (type -startPipe parameter in the command line)
+ * <li>as the middle element in Data Acquisition pipe.
+ * </ul>
+ * <p>In both the cases the class can be used to append any files into Data Acquisition pipe (type -append &lt;file_regex&gt; in the command line).
+ * It also supported a subset of standard command line keys:</p>
+ * <ul>
+ * <li> -remove &lt;file_regex&gt; to remove some files from Data Acquisition pipe
+ * <li> -rename &lt;name_regex->new_name&gt; to rename some files in Data Acquisition pipe
+ * <li> -debug turn on debug trace to the System.err stream
+ * </ul>
+ * <p>Source stream for the pipe element is the System.in, destination stream for the pipe element is System.out. When the -startPipe parameter was typed,
+ * Source stream must contain data in the {@linkplain Properties} format. The data will be used as content for new {@value Constants#PART_TICKET} part of the
+ * Data Acquisiton pipe. When the -startPipe is missing, source stream must contain Data Acquisition pipe content. In both the cases destination stream will contains
+ * Data Acquisition pipe content.</p>  
+ * @author Alexander Chernomyrdin aka chav1961
+ * @since 0.0.1
+ */
 public class Application extends AbstractZipProcessor {
 	public static final String	ARG_START_PIPE = "startPipe";
 	public static final String	ARG_APPEND = "append";
@@ -32,7 +53,7 @@ public class Application extends AbstractZipProcessor {
 	private final boolean		debug;
 	
 	Application(final String[] removeMask, final String[][] renameMask, final String[] appends, final PrintStream err, final boolean debug) throws SyntaxException {
-		super(new String[0], new String[] {".+"}, removeMask, renameMask);
+		super(Constants.MASK_NONE, Constants.MASK_ANY, removeMask, renameMask);
 		this.appends = appends;
 		this.ps = err;
 		this.debug = debug;
@@ -44,7 +65,7 @@ public class Application extends AbstractZipProcessor {
 	}
 
 	@Override
-	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final ZipOutputStream zos) throws IOException {
+	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final OutputStream zos) throws IOException {
 		for (String item : appends) {
 			if (debug) {
 				message(ps, "Append %1$s...", item);
