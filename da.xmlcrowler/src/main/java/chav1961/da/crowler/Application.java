@@ -153,8 +153,8 @@ public class Application extends AbstractZipProcessor {
 			new BooleanArg(Constants.ARG_DEBUG, false, "Turn on debug trace", false),
 			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
 			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
-			new FileArg(ARG_RULES_FILE, false, true, "Location if the rules file."),
-			new StringListArg(ARG_APPEND, false, true, "Append content to input stream in the input *.zip. Refs must be any valid URIs"),
+			new FileArg(ARG_RULES_FILE, false, true, "Location of the rules file."),
+			new StringListArg(ARG_APPEND, false, true, "Append content to input stream in the input *.zip. Must be any valid URIs list (both relative and absolute). Relative reference is threated as file/directory one")
 		};
 		
 		ApplicationArgParser() {
