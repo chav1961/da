@@ -153,6 +153,7 @@ public class Application extends AbstractZipProcessor {
 
 	private static void message(final PrintStream ps, final String format, final Object... parameters) {
 		ps.println("da.source: "+String.format(format, parameters));
+		ps.flush();
 	}
 	
 	static class ApplicationArgParser extends ArgParser {

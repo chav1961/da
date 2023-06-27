@@ -1,7 +1,7 @@
 package chav1961.da.util.interfaces;
 
 /**
- * <p>THis enumerations describes Data Acquisition pipe RDF content type</p>   
+ * <p>This enumerations describes Data Acquisition pipe RDF content type</p>   
  * @author Alexander Chernomyrdin aka chav1961
  * @since 0.0.1
  */

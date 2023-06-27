@@ -47,6 +47,12 @@ public class Constants {
 	 * @see #PART_TICKET
 	 */
 	public static final String		PART_KEY_CONTENT_TYPE = "contentType"; 
+
+	/**
+	 * <p>Data Acquisition pipe content: Base URI for entities.</p>
+	 * @see #PART_TICKET
+	 */
+	public static final String		PART_KEY_BASE_URI = "baseUri"; 
 	
 	/**
 	 * <p>Pattern for part name mask, that always returns false</p> 

@@ -37,8 +37,12 @@ import chav1961.purelib.basic.interfaces.LoggerFacade.Severity;
 
 /**
  * <p>This class is a main class to use as RDF data converter in Data Acquisition pipe. The class is a middle or terminal element in the Data Acquisition pipe.
- * To convert RDF part content type </p>
- * 
+ * To convert RDF part content type, use following parameters:</p>
+ * <ul>
+ * <li> -if &lt;content_type&gt; to type source format. If the parameter is missing, {@linkplain} Constants#PART_KEY_CONTENT_TYPE} parameter from {@value Constants#PART_TICKET}
+ * part will be used
+ * <li> -if &lt;content_type&gt; to type destination format.
+ * </ul>
  * <p>This class also supported all standard command line keys:</p>
  * <ul>
  * <li> -process &lt;file_regex&gt; to process some files in Data Acquisition pipe
@@ -182,6 +186,7 @@ public class Application extends AbstractZipProcessor {
 	
 	private static void message(final PrintStream ps, final String format, final Object... parameters) {
 		ps.println("da.converter: "+String.format(format, parameters));
+		ps.flush();
 	}
 	
 	private static class ApplicationArgParser extends ArgParser {
