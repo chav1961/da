@@ -24,7 +24,6 @@
   	<module>da.converter</module>
   	<module>da.infer</module>
   	<module>da.sender</module>
-  	<module>da.manager</module>
   	<module>da.source</module>
   	<module>da.xmlcrowler</module>
   </modules>
