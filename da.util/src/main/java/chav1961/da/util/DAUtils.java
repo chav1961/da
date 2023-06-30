@@ -23,7 +23,7 @@ public class DAUtils {
 	
 	/**
 	 * <p>Create new empty ZIP source according to Data Acquisition pipe standard</p>
-	 * @param props properties to use as {@value Constants#PART_TICKET} content. Can't be null</p>
+	 * @param props properties to use as {@value Constants#PART_TICKET} content. Can't be null
 	 * @return ZIP source. Can't be null.
 	 * @throws NullPointerException when properties is null
 	 * @throws IOException on any I/O errors

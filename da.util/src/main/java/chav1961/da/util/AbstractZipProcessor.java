@@ -122,7 +122,7 @@ public abstract class AbstractZipProcessor {
 	/**
 	 * <p>This is a callback to process part content. The callback will be called for all the parts matched to {@value Constants#ARG_PROCESS} or <i>not</i> matched to {@value Constants#ARG_PASS} command line argument.
 	 * The method will be called after calling {@linkplain #processTicket(SubstitutableProperties, LoggerFacade)} method</p>
-	 * </p>Don't close source or target stream during processing (including implicit closing by using <b>try-with-resource</b> inside the method).</p> 
+	 * <p>Don't close source or target stream during processing (including implicit closing by using <b>try-with-resource</b> inside the method).</p> 
 	 * @param part part name. Can't be null or empty.
 	 * @param props content of the {@value Constants#PART_TICKET} part. Don't change it's content can't during this method call. Can't be null
 	 * @param logger logger to print any processing errors into. Can't be null
@@ -157,18 +157,36 @@ public abstract class AbstractZipProcessor {
 	 * @param part part name to append. Can' be null or empty
 	 * @param is content to append into ZIP stream. Can't be null
 	 * @param target target output stream. Can't be null. Avoid using cast to {@linkplain ZipOutputStream} because it can be changed in the future.
-	 * @throws IOException
+	 * @throws IOException on any I/O errors
 	 */
 	protected void append(final String part, final InputStream is, final OutputStream target) throws IOException {
-		final ZipOutputStream	zos = (ZipOutputStream)target;
+		newEntry(part, target);
+		Utils.copyStream(is, target);
+		closeEntry(target);
+	}
+
+	/**
+	 * <p>Create new part entry in the output stream</p>
+	 * @param part part name to create new entry. Can't be null or empty
+	 * @param target output stream to create part into. Can't be null
+	 * @throws IOException on any I/O errors
+	 */
+	protected void newEntry(final String part, final OutputStream target) throws IOException {
 		final ZipEntry			zeOut = new ZipEntry(part);
 		
 		zeOut.setMethod(ZipEntry.DEFLATED);
-		zos.putNextEntry(zeOut);
-		Utils.copyStream(is, zos);
-		zos.closeEntry();
+		((ZipOutputStream)target).putNextEntry(zeOut);
 	}
-
+	
+	/**
+	 * <p>Close current entry in the output stream</p>
+	 * @param target output stream to close part in. Can't be null
+	 * @throws IOException on any I/O errors
+	 */
+	protected void closeEntry(final OutputStream target) throws IOException {
+		((ZipOutputStream)target).closeEntry();
+	}
+	
 	/**
 	 * <p>Process Data Acquisition pipe.</p>
 	 * @param zis input ZIP to process. Can't be null
@@ -188,7 +206,7 @@ public abstract class AbstractZipProcessor {
 			final SubstitutableProperties	props = new SubstitutableProperties();
 			String		logContent = "";
 			int 		state = STATE_BEFORE_TICKET;
-			ZipEntry	ze, zeOut;
+			ZipEntry	ze;
 			
 			while ((ze = zis.getNextEntry()) != null) {
 				switch (state) {
@@ -199,12 +217,9 @@ public abstract class AbstractZipProcessor {
 						else {
 							props.load(zis);
 							processTicket(props, slf);
-							
-							zeOut = new ZipEntry(Constants.PART_TICKET);
-							zeOut.setMethod(ZipEntry.DEFLATED);
-							zos.putNextEntry(zeOut);
+							newEntry(Constants.PART_TICKET, zos);
 							props.store(zos, null);
-							zos.closeEntry();
+							closeEntry(zos);
 							state = STATE_INSIDE_CONTENT;
 						}
 						break;
@@ -223,11 +238,9 @@ public abstract class AbstractZipProcessor {
 						}
 						else {
 							if (!mustRemove(ze.getName())) {
-								zeOut = new ZipEntry(renameIfRequired(ze.getName()));
-								zeOut.setMethod(ZipEntry.DEFLATED);
-								zos.putNextEntry(zeOut);
+								newEntry(renameIfRequired(ze.getName()), zos);
 								processPart(ze.getName(), props, slf, zis, zos);
-								zos.closeEntry();
+								closeEntry(zos);
 							}
 							else {
 								processPart(ze.getName(), props, slf, zis, NULL_OUTPUT);
@@ -244,9 +257,7 @@ public abstract class AbstractZipProcessor {
 			else {
 				processAppending(props, slf, zos);
 				
-				zeOut = new ZipEntry(Constants.PART_LOG);
-				zeOut.setMethod(ZipEntry.DEFLATED);
-				zos.putNextEntry(zeOut);
+				newEntry(Constants.PART_LOG, zos);
 				
 				final Writer wr = new OutputStreamWriter(zos, PureLibSettings.DEFAULT_CONTENT_ENCODING);
 				final String newLogContent = slf.toString().trim(); 
@@ -260,7 +271,7 @@ public abstract class AbstractZipProcessor {
 					wr.write(System.lineSeparator());
 				}
 				wr.flush();
-				zos.closeEntry();
+				closeEntry(zos);
 			}
 		}
 	}

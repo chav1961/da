@@ -30,7 +30,7 @@ public class ApplicationTest {
 			final ZipInputStream		zis = new ZipInputStream(is);
 			final ByteArrayOutputStream	baos = new ByteArrayOutputStream();
 			final ZipOutputStream		zos = new ZipOutputStream(baos)) {
-			final Application			app = new Application(new String[0], new String[0][], ap.getValue(Application.ARG_APPEND, String[].class), System.err, false);
+			final Application			app = new Application(new String[0], new String[0][], ap.getValue(Application.ARG_APPEND, String[].class), System.err, false, "", false);
 			
 			app.process(zis, zos);
 			zos.finish();
