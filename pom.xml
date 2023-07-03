@@ -26,5 +26,6 @@
   	<module>da.sender</module>
   	<module>da.source</module>
   	<module>da.xmlcrowler</module>
+  	<module>da.htmlcrowler</module>
   </modules>
 </project>

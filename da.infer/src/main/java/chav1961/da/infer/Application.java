@@ -2,6 +2,7 @@ package chav1961.da.infer;
 
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -38,7 +39,9 @@ import chav1961.da.util.DAUtils;
 import chav1961.da.util.interfaces.ContentFormat;
 import chav1961.da.util.interfaces.OntologyType;
 import chav1961.purelib.basic.ArgParser;
+import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
+import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
@@ -47,10 +50,12 @@ import chav1961.purelib.basic.interfaces.LoggerFacade;
 // https://github.com/apache/jena/blob/main/jena-examples/src/main/java/arq/examples/riot/ExRIOT4_StreamRDF_Filter.java
 
 public class Application extends AbstractZipProcessor {
+	public static final String	ARG_ONTOLOGY_TYPE = "ontologyType";
 	public static final String	ARG_ONTOLOGY = "ontology";
 	public static final String	ARG_CUSTOM_RULES = "customRules";
 
-	private final OntologyType	ontology;
+	private final Model			schema = prepareDatabase();
+	private final String		ontology;
 	private final String[]		customRules;
 	private final PrintStream	err;
 	private final boolean 		debug;
@@ -59,13 +64,13 @@ public class Application extends AbstractZipProcessor {
 	private String				baseURI = "";
 	
 	protected Application(final String[] processMask, final String[] passMask, final String[] removeMask, final String[][] renameMask,
-						final OntologyType ontology, final String[] customRules, final PrintStream err, final boolean debug) throws SyntaxException {
+						final OntologyType ontologyType, final String ontology, final String[] customRules, final PrintStream err, final boolean debug) throws SyntaxException {
 		super(processMask, passMask, removeMask, renameMask);
 		this.ontology = ontology;
 		this.customRules = customRules;
 		this.err = err;
 		this.debug = debug;
-		switch (ontology) {
+		switch (ontologyType) {
 			case NONE:
 				this.reasoner = ReasonerRegistry.getRDFSSimpleReasoner();
 				break;
@@ -77,7 +82,7 @@ public class Application extends AbstractZipProcessor {
 				this.reasoner.setParameter(ReasonerVocabulary.PROPsetRDFSLevel, ReasonerVocabulary.RDFS_FULL);
 				break;
 			default:
-				throw new UnsupportedOperationException("Ontology format ["+ontology+"] is not supported yet"); 
+				throw new UnsupportedOperationException("Ontology format ["+ontologyType+"] is not supported yet"); 
 		}
 	}
 
@@ -86,6 +91,9 @@ public class Application extends AbstractZipProcessor {
 		format = props.getProperty(Constants.PART_KEY_CONTENT_TYPE, ContentFormat.class);
 		if (props.containsKey(Constants.PART_KEY_BASE_URI)) {
 			baseURI = props.getProperty(Constants.PART_KEY_BASE_URI, String.class);
+		}
+		try(final InputStream	is = new ByteArrayInputStream(ontology.getBytes(PureLibSettings.DEFAULT_CONTENT_ENCODING))) {
+			downloadContent(is, format, schema);
 		}
 		super.processTicket(props, logger);
 	}
@@ -104,7 +112,7 @@ public class Application extends AbstractZipProcessor {
 			if (debug) {
 				message(err, "Starting inference on [%1$s] ...", part);
 			}
-			final Model infModel = inference(model, ontology);
+			final Model infModel = ModelFactory.createInfModel(reasoner, schema, model);
 			
 			try{
 				if (customRules.length > 0) {
@@ -164,19 +172,6 @@ public class Application extends AbstractZipProcessor {
 		}
 	}
 
-	private Model inference(final Model model, final OntologyType ontology) {
-		switch (ontology) {
-			case NONE:
-				return ModelFactory.createInfModel(reasoner, model);
-			case OWL:
-				return ModelFactory.createInfModel(reasoner, model);
-			case RDF:
-				return ModelFactory.createInfModel(reasoner, model);
-			default:
-				throw new UnsupportedOperationException("Ontology format ["+ontology+"] is not supported yet"); 
-		}
-	}
-	
 	private void processCustomRules(final Model model, final String[] customRules) throws IOException {
 		final File	temp = File.createTempFile("tmp", ".ntriples");
 		
@@ -255,9 +250,10 @@ public class Application extends AbstractZipProcessor {
 		
 		try{final ArgParser		parser = parserTemplate.parse(args);
 			final boolean		debug = parser.getValue(Constants.ARG_DEBUG, boolean.class);
-			final OntologyType	onto = parser.getValue(ARG_ONTOLOGY, OntologyType.class);
+			final OntologyType	onto = parser.getValue(ARG_ONTOLOGY_TYPE, OntologyType.class);
+			final String		ontoSource = Utils.fromResource(parser.getValue(ARG_ONTOLOGY, URI.class).toURL());
 			final String[]		customRules;
-			
+
 			if (parser.isTyped(ARG_CUSTOM_RULES)) {
 				try(final InputStream		ruleIs = parser.getValue(ARG_CUSTOM_RULES, URI.class).toURL().openStream();
 					final Reader			rulesRdr = new InputStreamReader(ruleIs);
@@ -275,7 +271,8 @@ public class Application extends AbstractZipProcessor {
 										parser.isTyped(Constants.ARG_PASS) ? new String[] {parser.getValue(Constants.ARG_PASS, String.class)} : Constants.MASK_NONE ,
 										parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : Constants.MASK_NONE ,
 										parser.isTyped(Constants.ARG_RENAME) ? DAUtils.parseRenameArgument(parser.getValue(Constants.ARG_RENAME, String.class)) : new String[0][],
-										onto, 
+										onto,
+										ontoSource,
 										customRules,
 										ps, 
 										debug);
@@ -332,7 +329,8 @@ public class Application extends AbstractZipProcessor {
 			new PatternArg(Constants.ARG_PASS, false, "Pass the given parts in the input *.zip without processing. Types as pattern[,...]. If missing, all the parts will be processed. Mutually exclusive with "+Constants.ARG_PROCESS+" argument", ""),
 			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
 			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
-			new EnumArg<OntologyType>(ARG_ONTOLOGY, OntologyType.class, true, false, "Ontology to inference"),
+			new EnumArg<OntologyType>(ARG_ONTOLOGY_TYPE, OntologyType.class, true, true, "Ontology type to inference"),
+			new URIArg(ARG_ONTOLOGY, false, false, "Your ontology URI"),
 			new URIArg(ARG_CUSTOM_RULES, false, false, "Custom rules for advanced database processing. Must points to text content with SPARQL splitted with '---\\n'. You can use UPDATE, DELETE and COMPOSE statements there"),
 		};
 		
