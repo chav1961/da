@@ -120,7 +120,8 @@ public class Application extends AbstractZipProcessor {
 											parser.isTyped(Constants.ARG_RENAME) ? DAUtils.parseRenameArgument(parser.getValue(Constants.ARG_RENAME, String.class)) : new String[0][],
 											rules, 
 											parser.getValue(ARG_APPEND, String[].class), 
-											err, debug
+											err, 
+											debug
 											);
 			final long 				startTime = System.currentTimeMillis();
 			

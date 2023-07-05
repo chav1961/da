@@ -64,6 +64,24 @@
      		<artifactId>da.util</artifactId>
      		<version>${project.parent.version}</version>
      	</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpclient</artifactId>
+		    <version>4.5.14</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpmime -->
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpmime</artifactId>
+		    <version>4.3.1</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/nu.validator.htmlparser/htmlparser -->
+		<dependency>
+		    <groupId>nu.validator.htmlparser</groupId>
+		    <artifactId>htmlparser</artifactId>
+		    <version>1.4</version>
+		</dependency>
     </dependencies>
   
      <build>
