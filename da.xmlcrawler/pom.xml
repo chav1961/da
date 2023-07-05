@@ -5,7 +5,7 @@
     <artifactId>da</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <artifactId>da.xmlcrowler</artifactId>
+  <artifactId>da.xmlcrawler</artifactId>
 
     <dependencies>
        	<dependency>
@@ -22,7 +22,7 @@
     </dependencies>
 
      <build>
-       <finalName>xmlcrowler-0.0.1</finalName>
+       <finalName>da.xmlcrawler</finalName>
         <resources>
             <resource>
                 <directory>src/main/java</directory>

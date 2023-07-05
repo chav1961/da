@@ -25,7 +25,7 @@
   	<module>da.infer</module>
   	<module>da.sender</module>
   	<module>da.source</module>
-  	<module>da.xmlcrowler</module>
-  	<module>da.htmlcrowler</module>
+  	<module>da.xmlcrawler</module>
+  	<module>da.htmlcrawler</module>
   </modules>
 </project>

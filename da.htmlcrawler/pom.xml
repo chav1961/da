@@ -5,8 +5,8 @@
     <artifactId>da</artifactId>
     <version>0.0.1-SNAPSHOT</version>
   </parent>
-  <artifactId>da.infer</artifactId>
-  
+  <artifactId>da.htmlcrawler</artifactId>
+
 	<developers>
 		<developer>
 			<name>Alexander Chernomyrdin aka chav1961</name>
@@ -64,16 +64,28 @@
      		<artifactId>da.util</artifactId>
      		<version>${project.parent.version}</version>
      	</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
 		<dependency>
-		    <groupId>org.apache.jena</groupId>
-		    <artifactId>apache-jena-libs</artifactId>
-		    <type>pom</type>
-		    <version>4.4.0</version>
-		  </dependency>     	
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpclient</artifactId>
+		    <version>4.5.14</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpmime -->
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpmime</artifactId>
+		    <version>4.3.1</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/nu.validator.htmlparser/htmlparser -->
+		<dependency>
+		    <groupId>nu.validator.htmlparser</groupId>
+		    <artifactId>htmlparser</artifactId>
+		    <version>1.4</version>
+		</dependency>
     </dependencies>
   
      <build>
-       <finalName>da.infer</finalName>
+       <finalName>da.htmlcrawler</finalName>
         <resources>
             <resource>
                 <directory>src/main/java</directory>
@@ -106,11 +118,11 @@
                        <manifest>
                            <addClasspath>true</addClasspath>
                            <classpathPrefix>./</classpathPrefix>
-                            <mainClass>chav1961.da.infer.Application</mainClass>
+                            <mainClass>chav1961.da.crowler.Application</mainClass>
                        </manifest>
                    </archive>
                </configuration>
            </plugin>
        </plugins>
-   </build>  
+   </build>
 </project>

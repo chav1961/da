@@ -59,7 +59,7 @@
 	</distributionManagement>
   
      <build>
-       <finalName>util-0.0.1</finalName>
+       <finalName>da.util</finalName>
         <resources>
             <resource>
                 <directory>src/main/java</directory>

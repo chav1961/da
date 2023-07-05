@@ -1,11 +1,11 @@
-package chav1961.da.crowler;
+package chav1961.da.crawler;
 
 import java.io.IOException;
 import java.io.Reader;
 
 import org.yaml.snakeyaml.Yaml;
 
-import chav1961.da.crowler.inner.RulesPattern;
+import chav1961.da.crawler.inner.RulesPattern;
 import chav1961.purelib.basic.exceptions.ContentException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 
