@@ -100,7 +100,7 @@
                        <manifest>
                            <addClasspath>true</addClasspath>
                            <classpathPrefix>./</classpathPrefix>
-                            <mainClass>chav1961.da.converter.Application</mainClass>
+                            <mainClass>chav1961.da.source.Application</mainClass>
                        </manifest>
                    </archive>
                </configuration>

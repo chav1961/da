@@ -1,4 +1,4 @@
-package chav1961.da.crawler;
+package chav1961.da.xmlcrawler;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,16 +27,48 @@ import chav1961.purelib.fsys.FileSystemFactory;
 import chav1961.purelib.fsys.interfaces.FileSystemInterface;
 
 
+/**
+ *	Rules file must have format:
+ *
+ *  file = (head){0,1} (body){1,1} (tail){0,1}
+ *  head = '@head\n' (subst)*  
+ *  body = '@body\n' (rule)+  
+ *  tail = '@tail\n' (subst)*
+ *  subst = (substline)*
+ *  substLine = (empty | comment | format)
+ *  empty = space* \n    
+ *  comment = '//' (any text) '\n'
+ *  format = (text | variable| preprocessor '\\n') *
+ *  text = (any text)
+ *  variable = '${' varName '}'
+ *  preprocessor = '.if ' expression '\\n' format '\\n' ('.else' preprocessor)* '.endif ' '\\n'
+ *  rule = xmlPattern '->' format
+ *  xmlPattern = xmlPatternItem ('/'xmlPatternItem)* ('/'variable('*'){0,1}){0,1}
+ *  xmlPatternItem = tagname ('[' attrlist ']'){0,1}
+ *  tagname = varname
+ *  attrList = attr (','attr)*
+ *  attr='@'attrName'='variable | '@@'attrName'='variable | '@'attrName '=' '"'value'"'| '@@'attrName '=' '"'value'"'
+ *  attrName = varName 
+ *  
+ *  Available variable names in the @head and @tail are:
+ *  - OS environment variables
+ *  - -Dkey=value pairs from java command string
+ *  - predefined ${timestamp} variable, containing application start time in the date/time format
+ *  
+ *  Variables in xml patterns can contain it's own variable names. This names must be unique in the scope of current rule. If name in any 
+ *  part of rule points to any known variable, variable content will be substituted instead. 
+ */
 public class Application extends AbstractZipProcessor {
 	private static final String	ARG_RULES_FILE = "rules";
 	private static final String	ARG_APPEND = "append";
+	private static final String	APP_LABEL = "da.xmlcrawler";
 	
-	private final RulesParser	parser;
+	private final RulesParserOld	parser;
 	private final String[]		appends;
 	private final PrintStream	ps;
 	private final boolean 		debug;
 	
-	public Application(final String[] removeMask, final String[][] renameMask, final RulesParser parser, final String[] appends, final PrintStream ps, final boolean debug) throws SyntaxException, NullPointerException, IllegalArgumentException {
+	public Application(final String[] removeMask, final String[][] renameMask, final RulesParserOld parser, final String[] appends, final PrintStream ps, final boolean debug) throws SyntaxException, NullPointerException, IllegalArgumentException {
 		super(Constants.MASK_NONE, Constants.MASK_ANY, removeMask, renameMask);
 		if (parser == null) {
 			throw new NullPointerException("Parser can't be null"); 
@@ -107,13 +139,13 @@ public class Application extends AbstractZipProcessor {
 		
 		try{final ArgParser			parser = parserTemplate.parse(args);
 			final boolean			debug = parser.getValue(Constants.ARG_DEBUG, boolean.class);
-			final RulesParser		rules;
+			final RulesParserOld		rules;
 			
 			message(err, "Parsing rules from [%1$s]...", parser.getValue(ARG_RULES_FILE, String.class));
-			try(final InputStream	ruleStream = parser.getValue(ARG_RULES_FILE, URL.class).openStream();
+			try(final InputStream	ruleStream = parser.getValue(ARG_RULES_FILE, URI.class).toURL().openStream();
 				final Reader		rdr = new InputStreamReader(ruleStream, PureLibSettings.DEFAULT_CONTENT_ENCODING)) {
 				
-				rules = new RulesParser(rdr);
+				rules = new RulesParserOld(rdr);
 			}
 			final Application		app = new Application(
 											parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : Constants.MASK_NONE ,
@@ -135,7 +167,7 @@ public class Application extends AbstractZipProcessor {
 			message(err, "Processing terminated, duration=%1$d msec", (System.currentTimeMillis() - startTime));
 		} catch (CommandLineParametersException exc) {
 			err.println(exc.getLocalizedMessage());
-			err.println(parserTemplate.getUsage("da.converter"));
+			err.println(parserTemplate.getUsage(APP_LABEL));
 			return 128;
 		} catch (IOException | ContentException exc) {
 			exc.printStackTrace(err);
@@ -146,7 +178,7 @@ public class Application extends AbstractZipProcessor {
 	
 	
 	private static void message(final PrintStream ps, final String format, final Object... parameters) {
-		ps.println("da.xmlcrowler: "+String.format(format, parameters));
+		ps.println(APP_LABEL+" "+String.format(format, parameters));
 	}
 	
 	static class ApplicationArgParser extends ArgParser {
@@ -154,7 +186,7 @@ public class Application extends AbstractZipProcessor {
 			new BooleanArg(Constants.ARG_DEBUG, false, "Turn on debug trace", false),
 			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
 			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
-			new FileArg(ARG_RULES_FILE, false, true, "Location of the rules file."),
+			new URIArg(ARG_RULES_FILE, false, true, "Location of the rules content."),
 			new StringListArg(ARG_APPEND, false, true, "Append content to input stream in the input *.zip. Must be any valid URIs list (both relative and absolute). Relative reference is threated as file/directory one")
 		};
 		

@@ -1,4 +1,4 @@
-package chav1961.da.crawler.inner;
+package chav1961.da.xmlcrawler.inner;
 
 import java.io.IOException;
 import java.util.Arrays;

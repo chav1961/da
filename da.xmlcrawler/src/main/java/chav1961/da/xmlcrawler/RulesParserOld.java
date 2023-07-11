@@ -1,18 +1,18 @@
-package chav1961.da.crawler;
+package chav1961.da.xmlcrawler;
 
 import java.io.IOException;
 import java.io.Reader;
 
 import org.yaml.snakeyaml.Yaml;
 
-import chav1961.da.crawler.inner.RulesPattern;
+import chav1961.da.xmlcrawler.inner.RulesPattern;
 import chav1961.purelib.basic.exceptions.ContentException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 
-public class RulesParser {
+public class RulesParserOld {
 	private final RulesPattern	rules;
 	
-	public RulesParser(final Reader reader) throws IOException, NullPointerException, SyntaxException, ContentException {
+	public RulesParserOld(final Reader reader) throws IOException, NullPointerException, SyntaxException, ContentException {
 		if (reader == null) {
 			throw new NullPointerException("Reader can't be null");
 		}

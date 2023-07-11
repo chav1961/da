@@ -1,4 +1,4 @@
-package chav1961.da.crawler;
+package chav1961.da.xmlcrawler;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -32,6 +32,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import chav1961.da.xmlcrawler.inner.Parts;
 import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
@@ -84,22 +85,6 @@ public class OldApplication {
 	public interface TriPredicate<T, U, V> {
 	    boolean test(T t, U u, V v);
 	}	
-	
-	public static enum Parts {
-		HEAD(KEY_HEAD),
-		BODY(KEY_BODY),
-		TAIL(KEY_TAIL);
-		
-		private final String	partLabel;
-		
-		private Parts(final String partLabel) {
-			this.partLabel = partLabel;
-		}
-		
-		public String getPartLabel() {
-			return partLabel;
-		}
-	}
 	
 	private static final Pattern	SUBST = Pattern.compile("\\$\\{(\\w+)\\}");
 	private static final Pattern	ATTRS = Pattern.compile("(\\w+)\\[(.+)\\]");

@@ -54,6 +54,7 @@ public class Application extends AbstractZipProcessor {
 	public static final String	ARG_START_PIPE = "startPipe";
 	public static final String	ARG_APPEND = "append";
 	public static final String	ARG_JOIN = "join";
+	private static final String	APP_LABEL = "da.source";
 	
 	private final String[]		appends;
 	private final String 		partName;
@@ -208,7 +209,7 @@ public class Application extends AbstractZipProcessor {
 			}
 		} catch (CommandLineParametersException exc) {
 			err.println(exc.getLocalizedMessage());
-			err.println(parserTemplate.getUsage("da.source"));
+			err.println(parserTemplate.getUsage(APP_LABEL));
 			return 128;
 		} catch (IOException | ContentException exc) {
 			exc.printStackTrace(err);
@@ -217,7 +218,7 @@ public class Application extends AbstractZipProcessor {
 	}
 
 	private static void message(final PrintStream ps, final String format, final Object... parameters) {
-		ps.println("da.source: "+String.format(format, parameters));
+		ps.println(APP_LABEL+" "+String.format(format, parameters));
 		ps.flush();
 	}
 	
