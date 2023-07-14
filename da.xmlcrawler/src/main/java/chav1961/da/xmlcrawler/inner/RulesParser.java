@@ -184,6 +184,7 @@ public class RulesParser {
 		final List<TriPredicate<String, Function<String,String>, Map<String, String>>>	result = new ArrayList<>();
 		Set<String>	namesDefined = null;
 		String theSameLastName = null;
+		String theSameLastComment = "";
 		boolean theSameLast = false;
 		boolean asteriskDetected = false;
 		
@@ -204,7 +205,7 @@ public class RulesParser {
 					final String	tagName = variables.get(varName);
 					
 					result.add(
-							new TriPredicateImpl(namesDefined) {
+							new TriPredicateImpl(namesDefined, item) {
 								@Override
 								public boolean test(final String tag, final Function<String,String> func, final Map<String,String> vars) {
 									return tag.equals(tagName) && tpA.test(tag, func, vars);
@@ -215,7 +216,7 @@ public class RulesParser {
 				else {
 					namesDefined.add(varName);
 					result.add(
-							new TriPredicateImpl(namesDefined) {
+							new TriPredicateImpl(namesDefined, item) {
 								@Override
 								public boolean test(final String tag, final Function<String,String> func, final Map<String,String> vars) {
 									if (tpA.test(tag, func, vars)) {
@@ -240,7 +241,13 @@ public class RulesParser {
 																										? (t,f,v)->true 
 																										: parseAttributes(lineNo, tags, variables, namesDefined);
 					
-					result.add((tag, func, vars)->tagName.equals(tag) && tpA.test(tag, func, vars));
+					result.add(new TriPredicateImpl(namesDefined, item) {
+							@Override
+							public boolean test(final String tag, final Function<String, String> func, final Map<String, String> vars) {
+								return tagName.equals(tag) && tpA.test(tag, func, vars);
+							}
+						}
+					);
 				}
 				else {
 					m = SUBST.matcher(item);
@@ -252,16 +259,28 @@ public class RulesParser {
 							final String	val = variables.get(varName);
 							
 							if (val != null) {
-								result.add((tag, func, vars)->val.equals(tag));
+								result.add(new TriPredicateImpl(namesDefined, item) {
+										@Override
+										public boolean test(final String tag, final Function<String, String> func, final Map<String, String> vars) {
+											return val.equals(tag);
+										}
+									}
+								);
 							}
 							else {
-								result.add((tag, func, vars)->Objects.equals(vars.get(varName),tag));
+								result.add(new TriPredicateImpl(namesDefined, item) {
+										@Override
+										public boolean test(final String tag, final Function<String, String> func, final Map<String, String> vars) {
+											return Objects.equals(vars.get(varName),tag);
+										}
+									}
+								);
 							}
 						}
 						else {
 							namesDefined.add(varName);
 							result.add(
-									new TriPredicateImpl(namesDefined) {
+									new TriPredicateImpl(namesDefined, item) {
 										@Override
 										public boolean test(final String tag, final Function<String, String> func, final Map<String, String> vars) {
 											return true;
@@ -269,6 +288,7 @@ public class RulesParser {
 									}
 							);
 							theSameLastName = varName;
+							theSameLastComment = item;
 							theSameLast = true;
 							asteriskDetected = item.endsWith("*");
 						}
@@ -276,7 +296,13 @@ public class RulesParser {
 					else {
 						final String	tagName = item;
 						
-						result.add((tag, func, vars)->tagName.equals(tag));
+						result.add(new TriPredicateImpl(namesDefined, item) {
+								@Override
+								public boolean test(final String tag, final Function<String, String> func, final Map<String, String> vars) {
+									return tagName.equals(tag);
+								}
+							}
+						);
 					}
 				}
 			}
@@ -285,7 +311,7 @@ public class RulesParser {
 			final boolean 	scr = asteriskDetected;
 			final String	varName = theSameLastName;
 			
-			result.set(result.size() - 1, new TriPredicate<String, Function<String,String>, Map<String,String>>() {
+			result.set(result.size() - 1, new TriPredicateImpl(new HashSet<>(Arrays.asList(varName)), theSameLastComment){
 				@Override
 				public boolean test(String t, Function<String, String> u, Map<String, String> v) {
 					return true;
@@ -830,9 +856,11 @@ loop:	for(;;) {
 
 	private abstract static class TriPredicateImpl implements TriPredicate<String, Function<String,String>, Map<String, String>> {
 		private final String[]	names; 
+		private final String	comment;
 		
-		private TriPredicateImpl(final Set<String> localNames) {
+		private TriPredicateImpl(final Set<String> localNames, final String comment) {
 			this.names = localNames.toArray(new String[localNames.size()]);
+			this.comment = comment;
 		}
 
 		@Override public abstract boolean test(final String tag, final Function<String, String> func, final Map<String, String> vars);
@@ -841,6 +869,11 @@ loop:	for(;;) {
 	    public String[] getLocalVarDefinitions() {
 	    	return names;
 	    }
+
+		@Override
+		public String toString() {
+			return "TriPredicateImpl [names=" + Arrays.toString(names) + ", comment=" + comment + "]";
+		}
 	}
 	
 	private static class Lexema {

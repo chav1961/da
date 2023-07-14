@@ -2,6 +2,7 @@ package chav1961.da.xmlcrawler.inner;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -37,7 +38,7 @@ public class RulesHandler extends DefaultHandler {
 		}
 		else {
 			this.wr = wr;
-			this.globalVars = globalVars;
+			this.globalVars = new HashMap<>(globalVars);
 			this.before = before;
 			this.after = after;
 			this.rules = rules;
@@ -52,7 +53,7 @@ public class RulesHandler extends DefaultHandler {
 	@Override
 	public void startElement(final String uri, final String localName, final String qName, final Attributes attributes) throws SAXException {
 		for(RuleExecutor item : rules) {
-			item.test(qName, (name)->attributes.getValue(name), null);
+			item.push(qName, (name)->attributes.getValue(name));
 		}
 		collector.setLength(0);
 	}
@@ -70,7 +71,11 @@ public class RulesHandler extends DefaultHandler {
 				if (item.charContentRequired()) {
 					item.setVar(item.getContentVarName(), collector.toString());
 				}
-				print(item.getFormat(), null);
+				try{
+					item.print(wr);
+				} catch (IOException e) {
+					throw new SAXException(e.getLocalizedMessage(), e);
+				}
 			}
 			item.pop();
 		}
