@@ -13,10 +13,35 @@ public class RuleExecutor {
 	private long	mask = 1L;
 	private int 	depth = 0;
 
+	public RuleExecutor(final Rule rule, final Map<String, String> vars) {
+		if (rule == null) {
+			throw new NullPointerException("Rule can't be null");
+		}
+		else if (vars == null) {
+			throw new NullPointerException("Vars can't be null");
+		}
+		else {
+			this.template = rule.predicate;
+			this.format = rule.format;
+			this.vars.putAll(vars);
+		}
+	}
+	
 	public RuleExecutor(final TriPredicate<String, Function<String, String>, Map<String, String>>[] template, final Function<Map<String, String>, char[]>[] format, final Map<String, String> vars) {
-		this.template = template;
-		this.format = format;
-		this.vars.putAll(vars);
+		if (template == null) {
+			throw new NullPointerException("Template can't be null");
+		}
+		else if (format == null) {
+			throw new NullPointerException("Format can't be null");
+		}
+		else if (vars == null) {
+			throw new NullPointerException("Vars can't be null");
+		}
+		else {
+			this.template = template;
+			this.format = format;
+			this.vars.putAll(vars);
+		}
 	}
 
 	public void push(final String tag, final Function<String, String> attrs) {
@@ -62,15 +87,17 @@ public class RuleExecutor {
 		}
 		else {
 			mask &= ~(1L << depth);
-			for(String item : template[depth].getLocalVarDefinitions()) {
-				vars.remove(item);
+			if (depth < template.length) {
+				for(String item : template[depth].getLocalVarDefinitions()) {
+					vars.remove(item);
+				}
 			}
 			depth--;
 		}
 	}
 	
 	public boolean charContentRequired() {
-		if (canServe()) {
+		if (canServe() && depth < template.length) {
 			return template[depth].charContentRequired();
 		}
 		else {
@@ -79,7 +106,7 @@ public class RuleExecutor {
 	}
 	
 	public String getContentVarName() {
-		if (canServe()) {
+		if (canServe() && depth < template.length) {
 			return template[depth].getContentVarName();
 		}
 		else {

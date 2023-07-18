@@ -1,0 +1,10 @@
+@head
+# comment ${key}
+
+@body
+PurchaseOrders/PurchaseOrder[@PurchaseOrderNumber=${number},@OrderDate=${date}]/Address[@Type="Shipping"]/Name/${content} -> \
+number=${number}, date=${date}, name=${content}\n 
+
+@tail
+# the end
+

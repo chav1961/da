@@ -20,7 +20,7 @@
 # Uploaded	: ${timestamp}  
 #  
 
-@refix rdf: <>
+@prefix rdf: <>
 
 //
 // Секция @body - обязательная
@@ -44,7 +44,7 @@
 @body
 RootTag/${tag}/InnerTag[@Attr1=${attr1},@Attr2=${attr2},@Attr3=${attr1},@Attr4="123",@@Attr5=${attr5}]/${content}* -> \ 
 		rdf:@{attr1} a rdf:${attr2} . \n \
-	.if attr5 \n \
+	.if attr5 ? \n \
 		rdf:@{attr1} rdfs:label "${attr5}"@ru . \n \
 	.endif \n \
 		rdf:@{attr1} rdfs:comment "${content}"@ru .

@@ -48,8 +48,9 @@ public class RulesParser {
 	private static final String		CONTINUATION = "\\";
 
 	private final Map<String,String>	variables = new HashMap<>();
-	private final Function<Map<String,String>, char[]>[]	beforeContent; 
-	private final Function<Map<String,String>, char[]>[]	afterContent; 
+	private final Rule[]				rulesParsed;
+	private final Function<Map<String,String>, char[]>[]	beforeContent;
+	private final Function<Map<String,String>, char[]>[]	afterContent;
 
 	private static enum LexType {
 		NAME,
@@ -92,16 +93,16 @@ public class RulesParser {
 			throw new NullPointerException("Input stream can't be null");
 		}
 		else {
-			
+			final StringBuilder		before = new StringBuilder(); 
+			final List<Rule>		rules = new ArrayList<>();
+			final StringBuilder		after = new StringBuilder();
+			int						startHead = 0, startTail = 0;
+
 			variables.putAll(System.getenv());
 			for(Entry<Object, Object> item : System.getProperties().entrySet()) {
 				variables.put(item.getKey().toString(), item.getValue().toString());
 			}
 			variables.put("timestamp", new Date(System.currentTimeMillis()).toString());
-			final StringBuilder		before = new StringBuilder(); 
-			final List<Rule>		rules = new ArrayList<>();
-			final StringBuilder		after = new StringBuilder();
-			int						startHead = 0, startTail = 0;
 			
 			try(final Reader			rdr = new InputStreamReader(is, PureLibSettings.DEFAULT_CONTENT_ENCODING);
 				final BufferedReader	brdr = new BufferedReader(rdr)) {
@@ -127,28 +128,28 @@ public class RulesParser {
 								startTail = lineNo;
 								break;
 							default :
-								if (trimmed.endsWith(CONTINUATION)) {	// Continuation to the next line
-									sb.append(trimmed, 0, trimmed.length() - 1).append(' ');
-								}
-								else {
-									if (!sb.isEmpty()) {		// Multiline string is finished
-										sb.append(trimmed);
-									}
-									trimmed = sb.toString();
-									sb.setLength(0);
-									switch (currentPart) {
-										case HEAD	:
-											before.append(trimmed).append(System.lineSeparator());
-											break;
-										case BODY	:
+								switch (currentPart) {
+									case HEAD	:
+										before.append(trimmed).append(System.lineSeparator());
+										break;
+									case BODY	:
+										if (trimmed.endsWith(CONTINUATION)) {	// Continuation to the next line
+											sb.append(trimmed, 0, trimmed.length() - 1).append(' ');
+										}
+										else {
+											if (!sb.isEmpty()) {		// Multiline string is finished
+												sb.append(trimmed);
+											}
+											trimmed = sb.toString();
+											sb.setLength(0);
 											rules.add(parseRule(lineNo, trimmed, variables));
-											break;
-										case TAIL	:
-											after.append(trimmed).append(System.lineSeparator());
-											break;
-										default:
-											throw new UnsupportedOperationException("Part type ["+currentPart+"] is not supported yet"); 
-									}
+										}
+										break;
+									case TAIL	:
+										after.append(trimmed).append(System.lineSeparator());
+										break;
+									default:
+										throw new UnsupportedOperationException("Part type ["+currentPart+"] is not supported yet"); 
 								}
 								break;
 						}
@@ -159,9 +160,26 @@ public class RulesParser {
 			}
 			this.beforeContent = buildSupplier(startHead, before.toString(), variables);
 			this.afterContent = buildSupplier(startTail, after.toString(), variables);
+			this.rulesParsed = rules.toArray(new Rule[rules.size()]);
 		}
 	}
-		
+
+	public Map<String,String> getVariables() {
+		return variables;
+	}
+	
+	public Function<Map<String,String>, char[]>[] getHeadContent() {
+		return beforeContent;
+	}
+
+	public Rule[] getRules() {
+		return rulesParsed;
+	}
+	
+	public Function<Map<String,String>, char[]>[] getTailContent() {
+		return afterContent;
+	}
+
 	static Rule parseRule(final int lineNo, final String content, final Map<String,String> variables) throws SyntaxException {
 		final int 		seqIndex = content.indexOf("->");
 		
@@ -169,15 +187,15 @@ public class RulesParser {
 			throw new SyntaxException(lineNo, 0, "Missing '->' in the rule"); 
 		}
 		else {
-			final int		templateLine = lineNo, formatLine = lineNo + SyntaxException.toRow(content, seqIndex);
-			final String	template = content.substring(0, seqIndex).trim(), format = content.substring(seqIndex + 2).trim();
-			final Map<String, String>						varClone = new HashMap<String, String>(variables);
-			final TriPredicate<String, Function<String,String>, Map<String, String>>[]	pred = parseTemplate(templateLine, template, varClone);
-			final Function<Map<String,String>, char[]>[]	supp = buildPreprocessedSupplier(lineNo, format, varClone);
+			final int					templateLine = lineNo, formatLine = lineNo + SyntaxException.toRow(content, seqIndex);
+			final String				template = content.substring(0, seqIndex).trim(), format = content.substring(seqIndex + 2).trim();
+			final Map<String, String>	varClone = new HashMap<String, String>(variables);
 			
-			return null;
+			final TriPredicate<String, Function<String,String>, Map<String, String>>[]	pred = parseTemplate(templateLine, template, varClone);
+			final Function<Map<String,String>, char[]>[]	supp = buildPreprocessedSupplier(lineNo, format.replace("\\n", "\n"), varClone);
+			
+			return new Rule(pred, supp);
 		}
-		
 	}
 	
 	static TriPredicate<String, Function<String,String>, Map<String, String>>[] parseTemplate(final int lineNo, final String template, final Map<String, String> variables) throws SyntaxException {

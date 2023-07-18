@@ -248,6 +248,10 @@ public class RulesParserTest {
 		Assert.assertTrue(templ[2].subtreeContentRequired());
 		Assert.assertEquals("tail",templ[2].getContentVarName());
 	}	
+
+	@Test
+	public void parseTotalTest() throws SyntaxException, IllegalArgumentException, NullPointerException {
+	}	
 	
 	static String print(final Function<Map<String,String>, char[]>[] supp, final Map<String,String> vars) {
 		final StringBuilder	sb = new StringBuilder();
