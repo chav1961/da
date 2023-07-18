@@ -48,6 +48,10 @@ public class RulesHandlerTest {
 		final DefaultHandler		handler = new RulesHandler(wr, parser.getVariables(), parser.getHeadContent(), parser.getTailContent(), exec);
 
 		saxParser.parse(new InputSource(this.getClass().getResourceAsStream("content.xml")), handler);
-		Assert.assertEquals("# comment value\n# the end\n", wr.toString().replace("\r", ""));
+		Assert.assertEquals("# comment value\n"+
+							"number=99503, date=1999-10-20, name=Ellen Adams\n"
+							+ "number=99505, date=1999-10-22, name=Ellen Adams\n"
+							+ "number=99504, date=1999-10-22, name=Ellen Adams\n"
+							+"# the end\n", wr.toString().replace("\r", ""));
 	}
 }

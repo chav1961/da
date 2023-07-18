@@ -7,6 +7,16 @@ import java.util.Map;
 import java.util.function.Function;
 
 public class RuleExecutor {
+	private static final long[]	MASKS = new long[64];
+	
+	static {
+		long mask = 0;
+		
+		for(int index = 0; index < MASKS.length; index++) {
+			MASKS[index] = mask |= (1L << index);
+		}
+	}
+	
 	private final TriPredicate<String, Function<String, String>, Map<String, String>>[]	template;
 	private final Function<Map<String, String>, char[]>[]	format;
 	private final Map<String,String> 	vars = new HashMap<>();
@@ -56,7 +66,7 @@ public class RuleExecutor {
 	}
 	
 	public boolean canServe() {
-		return (mask & (1L << depth)) != 0;
+		return depth == template.length - 1 && (mask & MASKS[depth]) == MASKS[depth];
 	}
 
 	public boolean collectingRequired() {
