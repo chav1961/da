@@ -17,7 +17,7 @@ import chav1961.purelib.basic.exceptions.CommandLineParametersException;
  * @since 0.0.1
  */
 public class DAUtils {
-	private static final String		RENAME_DIVIDER = "->";
+	private static final String		RENAME_DIVIDER = "::";
 	
 	private DAUtils() {}
 	

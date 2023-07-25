@@ -36,12 +36,12 @@ public class DAUtilsTest {
 
 	@Test
 	public void parseRenameArgumentTest() throws IOException, CommandLineParametersException {
-		String[][]	rename = DAUtils.parseRenameArgument("x->y");
+		String[][]	rename = DAUtils.parseRenameArgument("x::y");
 		
 		Assert.assertEquals(1, rename.length);
 		Assert.assertArrayEquals(new String[] {"x","y"}, rename[0]);
 
-		rename = DAUtils.parseRenameArgument("x->y;a->b");
+		rename = DAUtils.parseRenameArgument("x::y;a::b");
 		
 		Assert.assertEquals(2, rename.length);
 		Assert.assertArrayEquals(new String[] {"x","y"}, rename[0]);

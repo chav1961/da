@@ -1,30 +1,40 @@
 package chav1961.da.xmlcrawler;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.Reader;
+import java.io.Writer;
 import java.net.URI;
-import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 import chav1961.da.util.AbstractZipProcessor;
 import chav1961.da.util.Constants;
 import chav1961.da.util.DAUtils;
+import chav1961.da.xmlcrawler.inner.RuleExecutor;
+import chav1961.da.xmlcrawler.inner.RulesHandler;
+import chav1961.da.xmlcrawler.inner.RulesParser;
 import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
-import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.ContentException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
-import chav1961.purelib.enumerations.ContinueMode;
-import chav1961.purelib.fsys.FileSystemFactory;
-import chav1961.purelib.fsys.interfaces.FileSystemInterface;
 
 
 /**
@@ -60,25 +70,19 @@ import chav1961.purelib.fsys.interfaces.FileSystemInterface;
  */
 public class Application extends AbstractZipProcessor {
 	private static final String	ARG_RULES_FILE = "rules";
-	private static final String	ARG_APPEND = "append";
 	private static final String	APP_LABEL = "da.xmlcrawler";
 	
-	private final RulesParserOld	parser;
-	private final String[]		appends;
+	private final RulesParser	parser;
 	private final PrintStream	ps;
 	private final boolean 		debug;
 	
-	public Application(final String[] removeMask, final String[][] renameMask, final RulesParserOld parser, final String[] appends, final PrintStream ps, final boolean debug) throws SyntaxException, NullPointerException, IllegalArgumentException {
-		super(Constants.MASK_NONE, Constants.MASK_ANY, removeMask, renameMask);
+	public Application(final String[] processMask, final String[] passMask, final String[] removeMask, final String[][] renameMask, final RulesParser parser, final PrintStream ps, final boolean debug) throws SyntaxException, NullPointerException, IllegalArgumentException {
+		super(processMask, passMask, removeMask, renameMask);
 		if (parser == null) {
 			throw new NullPointerException("Parser can't be null"); 
 		}
-		else if (appends == null || appends.length == 0) {
-			throw new IllegalArgumentException("Appends mask can't be null or empty"); 
-		}
 		else {
 			this.parser = parser;
-			this.appends = appends;
 			this.ps = ps;
 			this.debug = debug;
 		}
@@ -86,48 +90,23 @@ public class Application extends AbstractZipProcessor {
 	
 	@Override
 	protected void processPart(final String part, final SubstitutableProperties props, final LoggerFacade logger, final InputStream source, final OutputStream target) throws IOException {
-		Utils.copyStream(source, target);
-	}
-
-	@Override
-	protected void processAppending(final SubstitutableProperties props, final LoggerFacade logger, final OutputStream target) throws IOException {
-		for (String item : appends) {
-			if (debug) {
-				message(ps, "Append %1$s...", item);
+		try {
+			final SAXParserFactory		factory = SAXParserFactory.newInstance();
+			final SAXParser 			saxParser = factory.newSAXParser();
+			final Writer				wr = new OutputStreamWriter(target, PureLibSettings.DEFAULT_CONTENT_ENCODING);
+			final RuleExecutor[]		ex = new RuleExecutor[parser.getRules().length];
+			final Map<String, String>	vars = new HashMap<>();
+			
+			vars.putAll(parser.getVariables());
+			for(int index = 0; index < ex.length; index++) {
+				ex[index] = new RuleExecutor(parser.getRules()[index], vars);
 			}
-			final URI	uri = URI.create(item);
-		
-			if (FileSystemInterface.FILESYSTEM_URI_SCHEME.equals(uri.getScheme())) {
-				try (final FileSystemInterface	fsi = FileSystemFactory.createFileSystem(uri)) {
-					if (fsi.exists() && fsi.isDirectory()) {
-						fsi.list((FileSystemInterface file)->{
-							if (file.exists() && file.isFile()) {
-								try(final InputStream	is = file.read()) {
-									processXML(file.getPath(), is, target);
-								}
-							}
-							return ContinueMode.CONTINUE;
-						});
-					}
-					else {
-						try(final InputStream	is = fsi.read()) {
-							processXML(fsi.getPath(), is, target);
-						}
-					}
-				}
-			}
-			else {
-				final URL	url = uri.toURL();
-				
-				try(final InputStream	is = url.openStream()) {
-					processXML(url.getPath(), is, target);
-				}
-			}
-		}
-	}
-	
-	private void processXML(final String pathName, final InputStream is, final OutputStream os) throws IOException {
-		append(pathName, is, os);
+			saxParser.parse(new InputSource(new InputStreamReader(source) {public void close() throws IOException {}}), 
+							new RulesHandler(wr, vars, parser.getHeadContent(), parser.getTailContent(), ex));
+			wr.flush();
+		} catch (ParserConfigurationException | SAXException e) {
+			throw new IOException(e); 
+		}		
 	}
 	
 	public static void main(final String[] args) {
@@ -139,19 +118,21 @@ public class Application extends AbstractZipProcessor {
 		
 		try{final ArgParser			parser = parserTemplate.parse(args);
 			final boolean			debug = parser.getValue(Constants.ARG_DEBUG, boolean.class);
-			final RulesParserOld		rules;
+			final RulesParser		rules;
 			
 			message(err, "Parsing rules from [%1$s]...", parser.getValue(ARG_RULES_FILE, String.class));
-			try(final InputStream	ruleStream = parser.getValue(ARG_RULES_FILE, URI.class).toURL().openStream();
-				final Reader		rdr = new InputStreamReader(ruleStream, PureLibSettings.DEFAULT_CONTENT_ENCODING)) {
+			try(final InputStream		ruleStream = parser.getValue(ARG_RULES_FILE, URI.class).toURL().openStream();
+				final Reader			rdr = new InputStreamReader(ruleStream, PureLibSettings.DEFAULT_CONTENT_ENCODING);
+				final BufferedReader	brdr = new BufferedReader(rdr)) {
 				
-				rules = new RulesParserOld(rdr);
+				rules = new RulesParser(brdr);
 			}
 			final Application		app = new Application(
+											parser.isTyped(Constants.ARG_PROCESS) ? new String[] {parser.getValue(Constants.ARG_PROCESS, String.class)} : Constants.MASK_ANY ,
+											parser.isTyped(Constants.ARG_PASS) ? new String[] {parser.getValue(Constants.ARG_PASS, String.class)} : Constants.MASK_NONE ,
 											parser.isTyped(Constants.ARG_REMOVE) ? new String[] {parser.getValue(Constants.ARG_REMOVE, String.class)} : Constants.MASK_NONE ,
 											parser.isTyped(Constants.ARG_RENAME) ? DAUtils.parseRenameArgument(parser.getValue(Constants.ARG_RENAME, String.class)) : new String[0][],
 											rules, 
-											parser.getValue(ARG_APPEND, String[].class), 
 											err, 
 											debug
 											);
@@ -184,10 +165,11 @@ public class Application extends AbstractZipProcessor {
 	static class ApplicationArgParser extends ArgParser {
 		private static final ArgParser.AbstractArg[]	KEYS = {
 			new BooleanArg(Constants.ARG_DEBUG, false, "Turn on debug trace", false),
+			new PatternArg(Constants.ARG_PROCESS, false, "Process the given parts in the input *.zip. Types as pattern[,...]. If missing, all the parts will be processed. Mutually exclusive with "+Constants.ARG_PASS+" argument", ".*"),
+			new PatternArg(Constants.ARG_PASS, false, "Pass the given parts in the input *.zip without processing. Types as pattern[,...]. If missing, all the parts will be processed. Mutually exclusive with "+Constants.ARG_PROCESS+" argument", ""),
 			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
 			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
 			new URIArg(ARG_RULES_FILE, false, true, "Location of the rules content."),
-			new StringListArg(ARG_APPEND, false, true, "Append content to input stream in the input *.zip. Must be any valid URIs list (both relative and absolute). Relative reference is threated as file/directory one")
 		};
 		
 		ApplicationArgParser() {

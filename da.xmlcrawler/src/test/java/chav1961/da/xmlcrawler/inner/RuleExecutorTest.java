@@ -19,11 +19,11 @@ public class RuleExecutorTest {
 		final RuleExecutor			re = new RuleExecutor(RulesParser.parseTemplate(0, "root/tag[@x=${x}]/${tail}", names), RulesParser.buildSupplier(0, "x=${x},tail=${tail}", names), vars);
 		
 		vars.clear();
-		Assert.assertTrue(re.canServe());
+		Assert.assertFalse(re.canServe());
 		Assert.assertFalse(re.collectingRequired());
 		
 		re.push("root", (v)->null);
-		Assert.assertTrue(re.canServe());
+		Assert.assertFalse(re.canServe());
 		Assert.assertFalse(re.collectingRequired());
 		re.push("tag", (v)->"123");
 		

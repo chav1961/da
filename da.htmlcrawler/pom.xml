@@ -3,7 +3,7 @@
   <parent>
     <groupId>com.github.chav1961</groupId>
     <artifactId>da</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+  	<version>0.0.1</version>
   </parent>
   <artifactId>da.htmlcrawler</artifactId>
 
@@ -85,7 +85,7 @@
     </dependencies>
   
      <build>
-       <finalName>da.htmlcrawler</finalName>
+       <finalName>da.htmlcrawler-${project.parent.version}</finalName>
         <resources>
             <resource>
                 <directory>src/main/java</directory>

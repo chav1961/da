@@ -1,6 +1,8 @@
 package chav1961.da.xmlcrawler.inner;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.HashMap;
@@ -28,7 +30,7 @@ public class RulesHandlerTest {
 		
 		System.setProperty("key", "value");
 		
-		final RulesParser			parser = new RulesParser(this.getClass().getResourceAsStream("simpleRules.txt"));
+		final RulesParser			parser = new RulesParser(new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream("simpleRules.txt"))));
 		final DefaultHandler		handler = new RulesHandler(wr, parser.getVariables(), parser.getHeadContent(), parser.getTailContent());
 
 		saxParser.parse(new InputSource(this.getClass().getResourceAsStream("content.xml")), handler);
@@ -43,7 +45,7 @@ public class RulesHandlerTest {
 		
 		System.setProperty("key", "value");
 		
-		final RulesParser			parser = new RulesParser(this.getClass().getResourceAsStream("simpleRules.txt"));
+		final RulesParser			parser = new RulesParser(new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream("simpleRules.txt"))));
 		final RuleExecutor			exec = new RuleExecutor(parser.getRules()[0], parser.getVariables());
 		final DefaultHandler		handler = new RulesHandler(wr, parser.getVariables(), parser.getHeadContent(), parser.getTailContent(), exec);
 

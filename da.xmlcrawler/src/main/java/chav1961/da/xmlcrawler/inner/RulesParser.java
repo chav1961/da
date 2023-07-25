@@ -88,9 +88,9 @@ public class RulesParser {
 		OR
 	}
 	
-	public RulesParser(final InputStream is) throws IOException, SyntaxException, IllegalArgumentException, NullPointerException {
-		if (is == null) {
-			throw new NullPointerException("Input stream can't be null");
+	public RulesParser(final BufferedReader brdr) throws IOException, SyntaxException, IllegalArgumentException, NullPointerException {
+		if (brdr == null) {
+			throw new NullPointerException("Input reader can't be null");
 		}
 		else {
 			final StringBuilder		before = new StringBuilder(); 
@@ -104,59 +104,56 @@ public class RulesParser {
 			}
 			variables.put("timestamp", new Date(System.currentTimeMillis()).toString());
 			
-			try(final Reader			rdr = new InputStreamReader(is, PureLibSettings.DEFAULT_CONTENT_ENCODING);
-				final BufferedReader	brdr = new BufferedReader(rdr)) {
-				final StringBuilder		sb = new StringBuilder();
-				Parts	currentPart = Parts.BODY;
-				String 	line;
-				int		lineNo = 1;
-			
-				while ((line = brdr.readLine()) != null) {
-					String	trimmed = line.trim();
-					
-					if (!trimmed.isEmpty() && !trimmed.startsWith(KEY_COMMENT)) {
-						switch (trimmed.toLowerCase()) {
-							case KEY_HEAD	:
-								currentPart = Parts.HEAD;
-								startHead = lineNo;
-								break;
-							case KEY_BODY	:
-								currentPart = Parts.BODY;
-								break;
-							case KEY_TAIL	:
-								currentPart = Parts.TAIL;
-								startTail = lineNo;
-								break;
-							default :
-								switch (currentPart) {
-									case HEAD	:
-										before.append(trimmed).append(System.lineSeparator());
-										break;
-									case BODY	:
-										if (trimmed.endsWith(CONTINUATION)) {	// Continuation to the next line
-											sb.append(trimmed, 0, trimmed.length() - 1).append(' ');
+			final StringBuilder		sb = new StringBuilder();
+			Parts	currentPart = Parts.BODY;
+			String 	line;
+			int		lineNo = 1;
+		
+			while ((line = brdr.readLine()) != null) {
+				String	trimmed = line.trim();
+				
+				if (!trimmed.isEmpty() && !trimmed.startsWith(KEY_COMMENT)) {
+					switch (trimmed.toLowerCase()) {
+						case KEY_HEAD	:
+							currentPart = Parts.HEAD;
+							startHead = lineNo;
+							break;
+						case KEY_BODY	:
+							currentPart = Parts.BODY;
+							break;
+						case KEY_TAIL	:
+							currentPart = Parts.TAIL;
+							startTail = lineNo;
+							break;
+						default :
+							switch (currentPart) {
+								case HEAD	:
+									before.append(trimmed).append(System.lineSeparator());
+									break;
+								case BODY	:
+									if (trimmed.endsWith(CONTINUATION)) {	// Continuation to the next line
+										sb.append(trimmed, 0, trimmed.length() - 1).append(' ');
+									}
+									else {
+										if (!sb.isEmpty()) {		// Multiline string is finished
+											sb.append(trimmed);
 										}
-										else {
-											if (!sb.isEmpty()) {		// Multiline string is finished
-												sb.append(trimmed);
-											}
-											trimmed = sb.toString();
-											sb.setLength(0);
-											rules.add(parseRule(lineNo, trimmed, variables));
-										}
-										break;
-									case TAIL	:
-										after.append(trimmed).append(System.lineSeparator());
-										break;
-									default:
-										throw new UnsupportedOperationException("Part type ["+currentPart+"] is not supported yet"); 
-								}
-								break;
-						}
-						
+										trimmed = sb.toString();
+										sb.setLength(0);
+										rules.add(parseRule(lineNo, trimmed, variables));
+									}
+									break;
+								case TAIL	:
+									after.append(trimmed).append(System.lineSeparator());
+									break;
+								default:
+									throw new UnsupportedOperationException("Part type ["+currentPart+"] is not supported yet"); 
+							}
+							break;
 					}
-					lineNo++;
+					
 				}
+				lineNo++;
 			}
 			this.beforeContent = buildSupplier(startHead, before.toString(), variables);
 			this.afterContent = buildSupplier(startTail, after.toString(), variables);
