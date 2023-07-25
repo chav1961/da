@@ -13,6 +13,7 @@ import java.io.Writer;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import org.eclipse.rdf4j.common.lang.FileFormat;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandler;
@@ -59,7 +60,7 @@ import chav1961.purelib.basic.interfaces.LoggerFacade.Severity;
 public class Application extends AbstractZipProcessor {
 	public static final String	ARG_INPUT_FORMAT = "if";
 	public static final String	ARG_OUTPUT_FORMAT = "of";
-	
+
 	private final ContentFormat		fromFormat; 
 	private final RDFFormat			fromNative; 
 	private final ContentFormat		toFormat; 

@@ -107,7 +107,7 @@ public class Application extends AbstractZipProcessor {
 			if (debug) {
 				message(err, "Download [%1$s] ...", part);
 			}
-			downloadContent(source, format, model);
+			downloadContent(new InputStreamWrapper(source), format, model);
 
 			if (debug) {
 				message(err, "Starting inference on [%1$s] ...", part);
@@ -124,7 +124,7 @@ public class Application extends AbstractZipProcessor {
 				if (debug) {
 					message(err, "Upload [%1$s]...", part);
 				}
-				uploadContent(infModel, target, format);
+				uploadContent(infModel, new OutputStreamWrapper(target), format);
 				if (debug) {
 					message(err, "Processing [%1$s] completed, duration = %2$d msec", part, System.currentTimeMillis() - startTime);
 				}
@@ -251,7 +251,7 @@ public class Application extends AbstractZipProcessor {
 		try{final ArgParser		parser = parserTemplate.parse(args);
 			final boolean		debug = parser.getValue(Constants.ARG_DEBUG, boolean.class);
 			final OntologyType	onto = parser.getValue(ARG_ONTOLOGY_TYPE, OntologyType.class);
-			final String		ontoSource = Utils.fromResource(parser.getValue(ARG_ONTOLOGY, URI.class).toURL());
+			final String		ontoSource = parser.isTyped(ARG_ONTOLOGY) ? Utils.fromResource(parser.getValue(ARG_ONTOLOGY, URI.class).toURL()) : "";
 			final String[]		customRules;
 
 			if (parser.isTyped(ARG_CUSTOM_RULES)) {
@@ -336,6 +336,41 @@ public class Application extends AbstractZipProcessor {
 		
 		ApplicationArgParser() {
 			super(KEYS);
+		}
+	}
+
+	private static class InputStreamWrapper extends InputStream {
+		private final InputStream nested;
+		
+		InputStreamWrapper(final InputStream nested) {
+			this.nested = nested;
+		}
+		
+		@Override
+		public int read() throws IOException {
+			return nested.read();
+		}
+		
+		@Override
+		public void close() throws IOException {
+		}
+	}
+	
+	private static class OutputStreamWrapper extends OutputStream {
+		private final OutputStream nested;
+		
+		OutputStreamWrapper(final OutputStream nested) {
+			this.nested = nested;
+		}
+		
+		@Override
+		public void write(int b) throws IOException {
+			nested.write(b);
+		}
+
+		@Override
+		public void close() throws IOException {
+			nested.flush();
 		}
 	}
 }

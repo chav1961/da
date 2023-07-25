@@ -148,7 +148,7 @@ public class Application extends AbstractZipProcessor {
         post.setEntity(content);
 
         try (CloseableHttpClient httpClient = HttpClients.createDefault();
-             CloseableHttpResponse response = httpClient.execute(post)){
+             CloseableHttpResponse response = httpClient.execute(post)) {
 
         	return response.getStatusLine().getStatusCode();
         }
@@ -171,8 +171,4 @@ public class Application extends AbstractZipProcessor {
 			super(KEYS);
 		}
 	}
-
 }
-
-
-
