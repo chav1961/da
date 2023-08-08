@@ -1,16 +1,28 @@
 package chav1961.da.sender;
 
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.net.Socket;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.commons.net.PrintCommandListener;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.commons.net.ftp.FTPReply;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -25,9 +37,12 @@ import chav1961.da.util.Constants;
 import chav1961.da.util.DAUtils;
 import chav1961.purelib.basic.ArgParser;
 import chav1961.purelib.basic.SubstitutableProperties;
+import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.CommandLineParametersException;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 import chav1961.purelib.basic.interfaces.LoggerFacade;
+import chav1961.purelib.fsys.FileSystemFactory;
+import chav1961.purelib.fsys.interfaces.FileSystemInterface;
 
 // https://mkyong.com/java/apache-httpclient-examples/
 // https://www.baeldung.com/httpclient-multipart-upload
@@ -36,10 +51,13 @@ public class Application extends AbstractZipProcessor {
 	public static final String	ARG_SERVER_URI = "uri";
 	public static final String	ARG_SERVER_HEADERS = "headers";
 	public static final String	ARG_MULTIPART_FORM = "mf";
+	
+	private static final Set<String>	SCHEMES_SUPPORTED = new HashSet<>(Arrays.asList("http", "https", "tcp", "tcps", "ftp", "file", "fsys"));
+	private static final Set<String>	MULTIPART_SUPPORTED = new HashSet<>(Arrays.asList("http", "https"));
 
 	private final PrintStream	err;
 	private final URI			server;
-	private final Properties	headers;
+	private final SubstitutableProperties	headers;
 	private final boolean		multipart;
 	private final boolean		debug;
 	private final MultipartEntityBuilder	meb;
@@ -48,7 +66,7 @@ public class Application extends AbstractZipProcessor {
 		super(toProcess, toPass, join(toRemove, toProcess), toRename);
 		this.err = err;
 		this.server = server;
-		this.headers = headers;
+		this.headers = new SubstitutableProperties(headers);
 		this.multipart = multipart;
 		this.debug = debug;
 		
@@ -70,7 +88,7 @@ public class Application extends AbstractZipProcessor {
 			meb.addBinaryBody(part, source);
 		}
 		else {
-			sendPOST(server, headers, new InputStreamEntity(source));
+			sendPOST(server, part, headers, source);
 		}
 	}
 	
@@ -81,7 +99,19 @@ public class Application extends AbstractZipProcessor {
 			if (debug) {
 				message(err, "Sending multipart content...");
 			}
-			sendPOST(server, headers, meb.build());
+			final HttpEntity	content = meb.build();
+	    	final HttpPost 		post = new HttpPost(server);
+	    	
+	        for (String item : props.availableKeys()) {
+	            post.setHeader(item, props.getValue(item));
+	        }
+	        post.setEntity(content);
+
+	        try (CloseableHttpClient httpClient = HttpClients.createDefault();
+	             CloseableHttpResponse response = httpClient.execute(post)) {
+
+	        	response.getStatusLine().getStatusCode();
+	        }
 		}
 	}	
 	
@@ -96,6 +126,19 @@ public class Application extends AbstractZipProcessor {
 			final boolean		debug = parser.getValue(Constants.ARG_DEBUG, boolean.class);
 			final URI			server = parser.getValue(ARG_SERVER_URI, URI.class);
 			final Properties	props = new Properties();
+		
+			if (!server.isAbsolute()) {
+				throw new CommandLineParametersException("Server URI ["+server+"] must be absolute");
+			}
+			else if (!SCHEMES_SUPPORTED.contains(server.getScheme())) {
+				throw new CommandLineParametersException("Server URI ["+server+"] - unsupported scheme. Only "+SCHEMES_SUPPORTED+" are available");
+			}
+			else if (parser.getValue(ARG_MULTIPART_FORM, boolean.class) && !MULTIPART_SUPPORTED.contains(server.getScheme())) {
+				throw new CommandLineParametersException("Multipart flag incompatible with server scheme ["+server.getScheme()+"]. It's available for "+MULTIPART_SUPPORTED+" only");
+			}
+			else if ("ftp".equals(server.getScheme()) && (server.getAuthority() == null || !server.getAuthority().contains("@"))) {
+				throw new CommandLineParametersException("Server URI for 'ftp' ["+server+"] must contain user@password clause");
+			}
 			
 			if (parser.isTyped(ARG_SERVER_HEADERS)) {
 				try(final InputStream	pis = parser.getValue(ARG_SERVER_HEADERS, URI.class).toURL().openStream()) {
@@ -139,19 +182,92 @@ public class Application extends AbstractZipProcessor {
 		ps.flush();
 	}
 
-    private static int sendPOST(final URI url, final Properties props, final HttpEntity content) throws IOException {
-    	final HttpPost 				post = new HttpPost(url);
+    private static int sendPOST(final URI url, final String name, final SubstitutableProperties props, final InputStream source) throws IOException {
+    	switch (url.getScheme()) {
+    		case "http" : case "https" :
+    			final HttpEntity	content = new InputStreamEntity(source);
+    	    	final HttpPost 		post = new HttpPost(url);
+    	    	
+    	        for (String item : props.availableKeys()) {
+    	            post.setHeader(item, props.getValue(item));
+    	        }
+    	        post.setEntity(content);
+
+    	        try (CloseableHttpClient httpClient = HttpClients.createDefault();
+    	             CloseableHttpResponse response = httpClient.execute(post)) {
+
+    	        	return response.getStatusLine().getStatusCode();
+    	        }
+    		case "tcp" : case "tcps" :
+    			try(final Socket		sock = new Socket(url.getHost(), url.getPort());
+    				final OutputStream	os = sock.getOutputStream()) {
+    				Utils.copyStream(source, os);
+    			}
+    			return 200;
+    		case "ftp" :
+    			final FTPClient ftp = new FTPClient();
+
+    		    try (final Writer 	wr = new StringWriter()) {
+       		        ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(wr)));
+    		        ftp.connect(url.getHost(), url.getPort());
+    		        int reply = ftp.getReplyCode();
+    		        
+    		        if (FTPReply.isPositiveCompletion(reply)) {
+    		        	final String[]	authority = url.getUserInfo().split(":");
+    		        	final File		f = new File(url.getPath(), name);
+    		        	final String	p = f.getPath().replace(File.separatorChar, '/');
+    		        	
+        		        ftp.login(authority[0], authority[1]);
+        		        if (p.lastIndexOf('/') > 0) {
+        		        	ftp.makeDirectory(f.getParent().replace(File.separatorChar, '/'));
+        		        }
+        		        ftp.storeFile(p, source);
+        		        ftp.logout();
+    		        }
+    		        else {
+    		        	wr.flush();
+    		        	throw new IOException("Error connecting to ["+url.getHost()+":"+url.getPort()+"]: "+wr.toString());
+    		        }
+    		    } finally {
+    		        ftp.disconnect();
+    		    }
+    			return 200;
+    		case "file" :
+    			final File	root = new File(url.getPath());
+    			final File	current = new File(root, name);
+    			
+    			current.getParentFile().mkdirs();
+    			
+    			try(final OutputStream	os = new FileOutputStream(current)) {
+    				Utils.copyStream(source, os);
+    			}
+    			return 200;
+    		case "fsys" :
+    			try(final FileSystemInterface	fsi = FileSystemFactory.createFileSystem(url)) {
+    				if (name.indexOf('/') < 0) {
+    					try(final OutputStream	os = fsi.open(name).create().write()) {
+    	    				Utils.copyStream(source, os);
+    					}
+    				}
+    				else {
+    					final String	fileName = fsi.open(name).getName();
+    					
+    					if (!fsi.open("../").isDirectory()) {
+    						fsi.mkDir();
+    					}
+    					else {
+    						fsi.open(fileName);
+    					}
+    					try(final OutputStream	os = fsi.create().write()) {
+    	    				Utils.copyStream(source, os);
+    					}
+    				}
+    			}
+    			return 200;
+    		default :
+    			throw new UnsupportedOperationException("Scheme ["+url.getScheme()+"] is not syupported yet");
+    	}
     	
-        for (Entry<Object, Object> item : props.entrySet()) {
-            post.setHeader(item.getKey().toString(), item.getValue().toString());
-        }
-        post.setEntity(content);
-
-        try (CloseableHttpClient httpClient = HttpClients.createDefault();
-             CloseableHttpResponse response = httpClient.execute(post)) {
-
-        	return response.getStatusLine().getStatusCode();
-        }
     }
 	
 	private static String[] join(final String[] toRemove, final String[] toProcess) {
@@ -169,7 +285,7 @@ public class Application extends AbstractZipProcessor {
 			new PatternArg(Constants.ARG_PASS, false, "Pass the given parts in the input *.zip without processing. Types as pattern[,...]. If missing, all the parts will be processed. Mutually exclusive with "+Constants.ARG_PROCESS+" argument", ""),
 			new PatternArg(Constants.ARG_REMOVE, false, false, "Remove entries from the *.zip input. Types as pattern[,...]. This option is processed AFTER processing/passing part"),
 			new StringArg(Constants.ARG_RENAME, false, false, "Rename entries in the *.zip input. Types as pattern->template[;...], see Java Pattern syntax and Java Mather.replaceAll(...) description. This option is processed AFTER processing/passing part"),
-			new URIArg(ARG_SERVER_URI, true, true, "Server URI to send content to."),
+			new URIArg(ARG_SERVER_URI, true, true, "Server URI to send content to. Must be absolute. Supported schemes are "+SCHEMES_SUPPORTED),
 			new URIArg(ARG_SERVER_HEADERS, false, false, "Request headers to send to the server URI."),
 			new BooleanArg(ARG_MULTIPART_FORM, false, "Pack all the parts processing to the multipart/form-data format", false),
 		};

@@ -6,4 +6,5 @@ module da.sender {
 	requires org.apache.httpcomponents.httpcore;
 	requires org.apache.httpcomponents.httpclient;
 	requires httpmime;
+	requires commons.net;
 }
