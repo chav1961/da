@@ -24,12 +24,12 @@ import java.util.regex.Pattern;
 import org.w3c.dom.Attr;
 
 import chav1961.purelib.basic.CharUtils;
-import chav1961.purelib.basic.MathUtils;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.Utils;
 import chav1961.purelib.basic.exceptions.SyntaxException;
 import chav1961.purelib.basic.growablearrays.GrowableCharArray;
 import chav1961.purelib.cdb.SyntaxNode;
+import chav1961.purelib.math.MathUtils;
 
 public class RulesParser {
 	private static final Pattern	SUBST = Pattern.compile("\\$\\{(\\w+)\\}");
