@@ -43,6 +43,7 @@ import chav1961.da.util.AbstractZipProcessor;
 import chav1961.da.util.Constants;
 import chav1961.da.util.DAUtils;
 import chav1961.purelib.basic.ArgParser;
+import chav1961.purelib.basic.MimeType;
 import chav1961.purelib.basic.PureLibSettings;
 import chav1961.purelib.basic.SubstitutableProperties;
 import chav1961.purelib.basic.Utils;
@@ -162,7 +163,7 @@ public class Application extends AbstractZipProcessor {
 			try(CloseableHttpResponse response = httpClient.execute(request)) {
 				final HttpEntity 	entity = response.getEntity();
 				
-				if (entity.getContentType().getValue().equals(PureLibSettings.MIME_HTML_TEXT.toString())) {
+				if (entity.getContentType().getValue().equals(MimeType.MIME_HTML_TEXT.toString())) {
 					final String xmlContent = convert(entity.getContent(), logger);
 					
 					append(path, new ByteArrayInputStream(xmlContent.getBytes(PureLibSettings.DEFAULT_CONTENT_ENCODING)), target);
