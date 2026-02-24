@@ -4,6 +4,7 @@ module da.htmlcrawler {
 	requires java.base;
 	requires org.apache.httpcomponents.httpcore;
 	requires org.apache.httpcomponents.httpclient;
-	requires httpmime;
 	requires htmlparser;
+	
+	exports chav1961.da.crawler;
 }
